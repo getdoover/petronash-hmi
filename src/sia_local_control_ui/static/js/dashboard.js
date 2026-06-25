@@ -23,33 +23,22 @@ class Dashboard {
         this.connectionStatus = document.getElementById('connection-status');
         
         // Pump controls
-        this.targetRate = document.getElementById('target-rate').querySelector('.value');
-        this.flowRate = document.getElementById('flow-rate').querySelector('.value');
         this.pumpState = document.getElementById('pump-state').querySelector('.state-value');
-        
-        // Pump 2 controls
-        this.targetRate2 = document.getElementById('target-rate-2').querySelector('.value');
-        this.flowRate2 = document.getElementById('flow-rate-2').querySelector('.value');
-        this.pumpState2 = document.getElementById('pump-state-2').querySelector('.state-value');
-        
-        // Valve control sections for selection
-        this.valveState = document.getElementById('valve-state').querySelector('.state-value');
-        
-        // Solar controls
-        this.batteryVoltage = document.getElementById('battery-voltage').querySelector('.value');
-        this.batteryPercentage = document.getElementById('battery-percentage').querySelector('.value');
-        this.batteryProgress = document.getElementById('battery-progress');
-        this.arrayVoltage = document.getElementById('array-voltage').querySelector('.value');
-        this.batteryAh = document.getElementById('battery-ah').querySelector('.value');
-        
+
         // Tank controls
         this.tankLevelMm = document.getElementById('tank-level-mm').querySelector('.value');
+        this.tankLevelUnit = document.getElementById('tank-level-mm').querySelector('.unit');
         this.tankLevelPercent = document.getElementById('tank-level-percent').querySelector('.value');
         this.tankProgress = document.getElementById('tank-progress');
-        
+
+        // Display units for length readings ("mm" or "inch"); raw value always stored in mm
+        this.lengthUnit = 'mm';
+        this.tankLevelRawMm = 0;
+
         // Skid controls
         this.skidFlow = document.getElementById('skid-flow').querySelector('.value');
         this.skidPressure = document.getElementById('skid-pressure').querySelector('.value');
+        this.skidTotalFlow = document.getElementById('skid-total-flow').querySelector('.value');
         
         this.systemStatus = document.getElementById('system-status')?.querySelector('.status-value');
         
@@ -58,10 +47,6 @@ class Dashboard {
         
         // Loading overlay
         this.loadingOverlay = document.getElementById('loading-overlay');
-
-        this.pumpControl1 = document.getElementById('pump-control-1');
-        this.pumpControl2 = document.getElementById('pump-control-2');
-        this.valveControl = document.getElementById('valve-control');
 
         // Fault popover
         this.faultPopover = document.getElementById('fault-popover');
@@ -187,19 +172,7 @@ class Dashboard {
     }
 
     updatePumpSelection() {
-        // Remove selected class from both pumps
-        this.pumpControl1.classList.remove('selected-pump');
-        this.pumpControl2.classList.remove('selected-pump');
-        this.valveControl.classList.remove('selected-pump');
-        
-        // Add selected class to the currently selected pump
-        if (this.selectedPump === 1) {
-            this.pumpControl1.classList.add('selected-pump');
-        } else if (this.selectedPump === 2) {
-            this.pumpControl2.classList.add('selected-pump');
-        } else if (this.selectedPump === 3) {
-            this.valveControl.classList.add('selected-pump');
-        }
+        // Single combined pump layout: no per-pump highlighting to apply.
     }
     
     updateDashboard(data) {
@@ -207,27 +180,17 @@ class Dashboard {
         if (data.pump) {
             this.updatePumpData(data.pump);
         }
-        
-        // Update pump 2 data
-        if (data.pump2) {
-            this.updatePump2Data(data.pump2);
+
+        // Apply display units before rendering values that depend on them
+        if (data.units) {
+            this.updateUnits(data.units);
         }
 
-        // Update valve data
-        if (data.valve) {
-            this.updateValveData(data.valve);
-        }
-        
-        // Update solar data
-        if (data.solar) {
-            this.updateSolarData(data.solar);
-        }
-        
         // Update tank data
         if (data.tank) {
             this.updateTankData(data.tank);
         }
-        
+
         // Update skid data
         if (data.skid) {
             this.updateSkidData(data.skid);
@@ -252,113 +215,80 @@ class Dashboard {
     }
     
     updatePumpData(pumpData) {
-        // Update target rate
-        if (pumpData.target_rate !== undefined) {
-            this.animateValueChange(this.targetRate, pumpData.target_rate.toFixed(2));
-        }
-        
-        // Update flow rate
-        if (pumpData.flow_rate !== undefined) {
-            this.animateValueChange(this.flowRate, pumpData.flow_rate.toFixed(2));
-        }
-        
         // Update pump state
         if (pumpData.pump_state !== undefined) {
             this.updatePumpState(pumpData.pump_state);
         }
     }
-    
-    updatePump2Data(pumpData) {
-        // Update target rate
-        if (pumpData.target_rate !== undefined) {
-            this.animateValueChange(this.targetRate2, pumpData.target_rate.toFixed(2));
-        }
-        
-        // Update flow rate
-        if (pumpData.flow_rate !== undefined) {
-            this.animateValueChange(this.flowRate2, pumpData.flow_rate.toFixed(2));
-        }
-        
-        // Update pump state
-        if (pumpData.pump_state !== undefined) {
-            this.updatePump2State(pumpData.pump_state);
-        }
-    }
 
-    updateValveData(valveData) {
-        // Update valve state
-        if (valveData.state !== undefined) {
-            if (valveData.state) {
-                this.updateValveState("closed");
-            } else {
-                this.updateValveState("opened");
+    updateUnits(unitsData) {
+        // Length unit toggles tank level between millimeters and inches
+        if (unitsData.length !== undefined) {
+            const unit = unitsData.length === 'inch' ? 'inch' : 'mm';
+            if (unit !== this.lengthUnit) {
+                this.lengthUnit = unit;
+                // Re-render the tank reading in the new unit
+                this.renderTankLevel();
             }
         }
     }
-    
-    updateSolarData(solarData) {
-        // Update battery voltage
-        if (solarData.battery_voltage !== undefined) {
-            this.animateValueChange(this.batteryVoltage, solarData.battery_voltage.toFixed(1));
-        }
-        
-        // Update battery percentage
-        if (solarData.battery_percentage !== undefined) {
-            const percentage = Math.round(solarData.battery_percentage);
-            this.animateValueChange(this.batteryPercentage, percentage.toString());
-            this.updateProgressBar(this.batteryProgress, percentage);
-        }
-        
-        // Update panel power
-        if (solarData.panel_power !== undefined) {
-            this.animateValueChange(this.arrayVoltage, solarData.panel_power.toFixed(1));
-        }
-        
-        // Update battery Ah
-        if (solarData.battery_ah !== undefined) {
-            this.animateValueChange(this.batteryAh, solarData.battery_ah.toFixed(1));
+
+    renderTankLevel() {
+        if (this.lengthUnit === 'inch') {
+            const inches = this.tankLevelRawMm / 25.4;
+            this.tankLevelUnit.textContent = '"';
+            this.animateValueChange(this.tankLevelMm, inches.toFixed(1));
+        } else {
+            this.tankLevelUnit.textContent = 'mm';
+            this.animateValueChange(this.tankLevelMm, Math.round(this.tankLevelRawMm).toString());
         }
     }
-    
+
     updateTankData(tankData) {
-        // Update tank level in mm
+        // Update tank level (raw value is always in mm; displayed unit is configurable)
         if (tankData.tank_level_mm !== undefined) {
-            this.animateValueChange(this.tankLevelMm, Math.round(tankData.tank_level_mm).toString());
+            this.tankLevelRawMm = tankData.tank_level_mm;
+            this.renderTankLevel();
         }
-        
+
         // Update tank level percentage
         if (tankData.tank_level_percent !== undefined) {
             const percentage = Math.round(tankData.tank_level_percent);
             this.animateValueChange(this.tankLevelPercent, percentage.toString());
-            this.updateProgressBar(this.tankProgress, percentage);
+            this.updateTankGauge(percentage);
         }
     }
-    
+
     updateSkidData(skidData) {
         // Update skid flow
         if (skidData.skid_flow !== undefined) {
             this.animateValueChange(this.skidFlow, skidData.skid_flow.toFixed(1));
         }
-        
+
         // Update skid pressure
         if (skidData.skid_pressure !== undefined) {
             this.animateValueChange(this.skidPressure, skidData.skid_pressure.toFixed(1));
         }
+
+        // Update total flow over lifetime of the skid
+        if (skidData.total_flow !== undefined) {
+            this.animateValueChange(this.skidTotalFlow, skidData.total_flow.toFixed(1));
+        }
     }
-    
+
     updateSystemData(systemData) {
         // Update system status
         if (systemData.status !== undefined) {
             this.updateSystemStatus(systemData.status);
         }
     }
-    
+
     updatePumpState(state) {
         this.pumpState.textContent = state;
         // Normalize state to lowercase for CSS class matching
         const normalizedState = state.toLowerCase();
         this.pumpState.className = `state-value ${normalizedState}`;
-        
+
         // Update active button
         const buttons = document.querySelectorAll('.state-btn');
         buttons.forEach(btn => {
@@ -368,30 +298,18 @@ class Dashboard {
             }
         });
     }
-    
-    updatePump2State(state) {
-        this.pumpState2.textContent = state;
-        // Normalize state to lowercase for CSS class matching
-        const normalizedState = state.toLowerCase();
-        this.pumpState2.className = `state-value ${normalizedState}`;
-    }
 
-    updateValveState(state) {
-        this.valveState.textContent = state;
-        // Normalize state to lowercase for CSS class matching
-        const normalizedState = state.toLowerCase();
-        this.valveState.className = `state-value ${normalizedState}`;
-    }
-    
-    updateProgressBar(progressBar, percentage) {
-        progressBar.style.width = `${Math.max(0, Math.min(100, percentage))}%`;
-        
+    updateTankGauge(percentage) {
+        const pct = Math.max(0, Math.min(100, percentage));
+        // Vertical gauge fills bottom-to-top via height
+        this.tankProgress.style.height = `${pct}%`;
+
         // Update color based on percentage
-        progressBar.className = 'progress-fill';
+        this.tankProgress.className = 'tank-gauge-fill';
         if (percentage < 5) {
-            progressBar.classList.add('low');
+            this.tankProgress.classList.add('low');
         } else if (percentage < 25) {
-            progressBar.classList.add('medium');
+            this.tankProgress.classList.add('medium');
         }
     }
     

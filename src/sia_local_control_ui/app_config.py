@@ -23,6 +23,13 @@ class SiaLocalControlUiConfig(config.Schema):
             
         self.tank_level_app = config.Application("Tank Level App", description="The tank level application")
 
+        self.display_units = config.Enum(
+            "Display Units",
+            choices=['Millimeter (mm)', 'Inch (")'],
+            default='Millimeter (mm)',
+            description="Units used for length readings (e.g. tank level) on the screen",
+        )
+
 def export():
     SiaLocalControlUiConfig().export(Path(__file__).parents[2] / "doover_config.json", "sia_local_control_ui")
 

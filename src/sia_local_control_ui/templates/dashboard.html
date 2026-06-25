@@ -10,7 +10,11 @@
 <body>
     <div class="dashboard-container">
         <header class="dashboard-header">
-            <h1><img src="{{ url_for('static', filename='remote_command_logo.png') }}" alt="SIA Remote Command" class="header-logo"> SIA Remote Command </h1>
+            <h1>
+                <img src="{{ url_for('static', filename='petronash_logo.png') }}" alt="Petronash" class="title-logo title-logo-left">
+                <img src="{{ url_for('static', filename='remote_command_logo.png') }}" alt="SIA Remote Command" class="header-logo"> SIA Remote Command
+                <img src="{{ url_for('static', filename='aramco_logo.png') }}" alt="Aramco" class="title-logo title-logo-right">
+            </h1>
             <div class="header-info">
                 <div class="connection-status">
                     <span id="connection-status" class="status-disconnected">
@@ -24,80 +28,15 @@
         </header>
 
         <main class="dashboard-content">
-            <!-- Pump Control and Skid Row -->
-            <div class="pump-skid-row">
-                <!-- Pump Control Section -->
+            <div class="hmi-grid">
+                <!-- Pump Column -->
                 <section class="control-section pump-section">
-                <h2><i class="fas fa-pump"></i> Pump Control</h2>
-                <div class="controls-grid" id="pump-control-1">
-                    <div class="control-card">
-                        <h3></h3>
-                        <div class="value-display" id="pump-control-label">
-                            <span class="value">Pump 1</span>
-                            <span class="unit"></span>
-                        </div>
-                    </div>
-                    <div class="control-card">
-                        <h3>Target Rate</h3>
-                        <div class="value-display" id="target-rate">
-                            <span class="value">0.0</span>
-                            <span class="unit">Gal/Hr</span>
-                        </div>
-                    </div>
-                    <div class="control-card">
-                        <h3>Flow Rate</h3>
-                        <div class="value-display" id="flow-rate">
-                            <span class="value">0.0</span>
-                            <span class="unit">Gal/Hr</span>
-                        </div>
-                    </div>
-                    <div class="control-card">
-                        <h3>Pump State</h3>
-                        <div class="state-display" id="pump-state">
-                            <span class="state-value">standby</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="controls-grid" id="pump-control-2">
-                    <div class="control-card">
-                        <h3></h3>
-                        <div class="value-display" id="pump-control-label-2">
-                            <span class="value">Pump 2</span>
-                            <span class="unit"></span>
-                        </div>
-                    </div>
-                    <div class="control-card">
-                        <h3>Target Rate 2</h3>
-                        <div class="value-display" id="target-rate-2">
-                            <span class="value">0.0</span>
-                            <span class="unit">Gal/Hr</span>
-                        </div>
-                    </div>
-                    <div class="control-card">
-                        <h3>Flow Rate 2 </h3>
-                        <div class="value-display" id="flow-rate-2">
-                            <span class="value">0.0</span>
-                            <span class="unit">Gal/Hr</span>
-                        </div>
-                    </div>
-                    <div class="control-card">
-                        <h3>Pump State 2</h3>
-                        <div class="state-display" id="pump-state-2">
-                            <span class="state-value">standby</span>
-                        </div>
-                    </div>
-                </div>
-                </section>
-
-                <!-- Skid Control Section -->
-                <section class="control-section skid-section">
-                    <h2><i class="fas fa-cogs"></i> Skid</h2>
-                    <div class="controls-grid">
+                    <h2><i class="fas fa-pump"></i> Pump</h2>
+                    <div class="controls-grid controls-grid-vertical">
                         <div class="control-card">
-                            <h3>Flow</h3>
-                            <div class="value-display" id="skid-flow">
-                                <span class="value">0.0</span>
-                                <span class="unit">Gal/Hr</span>
+                            <h3>Pump State</h3>
+                            <div class="state-display" id="pump-state">
+                                <span class="state-value">standby</span>
                             </div>
                         </div>
                         <div class="control-card">
@@ -109,83 +48,45 @@
                         </div>
                     </div>
                 </section>
-            </div>
 
-            <!-- Secondary Controls Row - Solar and Tank in Column -->
-            <div class="secondary-controls-row">
-                <!-- Valve Control Section -->
-                <section class="control-section valve-section">
-                    <h2><i class="fas fa-faucet"></i> Valve </h2>
-                    <div class="controls-grid" id="valve-control">
+                <!-- Skid Column -->
+                <section class="control-section skid-section">
+                    <h2><i class="fas fa-cogs"></i> Skid</h2>
+                    <div class="controls-grid controls-grid-vertical">
                         <div class="control-card">
-                            <h3>Valve 1</h3>
-                            <div class="value-display" id="valve-state">
-                                <span class="state-value">Closed</span>
+                            <h3>Flow</h3>
+                            <div class="value-display" id="skid-flow">
+                                <span class="value">0.0</span>
+                                <span class="unit">Gal/Hr</span>
+                            </div>
+                        </div>
+                        <div class="control-card">
+                            <h3>Total Flow</h3>
+                            <div class="value-display" id="skid-total-flow">
+                                <span class="value">0.0</span>
+                                <span class="unit">Gal</span>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Solar Control Section -->
-                <section class="control-section solar-section">
-                    <h2><i class="fas fa-solar-panel"></i> Solar System</h2>
-                    <div class="controls-grid">
-                        <div class="control-card">
-                            <h3>Battery</h3>
-                            <div class="value-display" id="battery-voltage">
-                                <span class="value">0.0</span>
-                                <span class="unit">V</span>
-                            </div>
+                <!-- Tank Column -->
+                <section class="control-section tank-section">
+                    <h2><i class="fas fa-tint"></i> Tank Level</h2>
+                    <div class="tank-gauge-wrap">
+                        <div class="tank-gauge">
+                            <div class="tank-gauge-fill" id="tank-progress"></div>
                         </div>
-                        <div class="control-card">
-                            <h3>Battery</h3>
-                            <div class="value-display" id="battery-percentage">
+                        <div class="tank-gauge-readouts">
+                            <div class="value-display" id="tank-level-percent">
                                 <span class="value">0</span>
                                 <span class="unit">%</span>
                             </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="battery-progress"></div>
-                            </div>
-                        </div>
-                        <div class="control-card">
-                            <h3>Panel</h3>
-                            <div class="value-display" id="array-voltage">
-                                <span class="value">0.0</span>
-                                <span class="unit">V</span>
-                            </div>
-                        </div>
-                        <div class="control-card">
-                            <h3>Ah</h3>
-                            <div class="value-display" id="battery-ah">
-                                <span class="value">0.0</span>
-                                <span class="unit">Ah</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Tank Control Section -->
-                <section class="control-section tank-section">
-                    <h2><i class="fas fa-tint"></i> Tank </h2>
-                    <div class="controls-grid">
-                        <div class="control-card">
-                            <h3>Tank Level</h3>
                             <div class="value-display" id="tank-level-mm">
                                 <span class="value">0</span>
                                 <span class="unit">mm</span>
                             </div>
                         </div>
-                        <div class="control-card">
-                            <h3>Tank Level</h3>
-                            <div class="value-display" id="tank-level-percent">
-                                <span class="value">0</span>
-                                <span class="unit">%</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="tank-progress"></div>
-                            </div>
-                        </div>
-                        
                     </div>
                 </section>
             </div>

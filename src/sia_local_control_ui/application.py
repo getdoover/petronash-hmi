@@ -150,7 +150,6 @@ class SiaLocalControlUiApplication(Application):
         update_data = {}
         
         p1_slt_state, p2_slt_state = await self.get_ai([self.pump_1_selector, self.pump_2_selector])
-
         
         if p1_slt_state <= 5 and p2_slt_state <= 5:
             self.selector_state = 3
@@ -274,6 +273,10 @@ class SiaLocalControlUiApplication(Application):
 
         if tank_data:
             update_data["tank"] = tank_data
+
+        # Length unit for on-screen readings, configurable between mm and inches
+        length_unit = "inch" if "Inch" in str(self.config.display_units.value) else "mm"
+        update_data["units"] = {"length": length_unit}
 
         skid_flow = None
         skid_pressure = None

@@ -37,9 +37,13 @@ class DashboardData:
         self.tank_level_mm: float = 0.0
         self.tank_level_percent: float = 0.0
 
+        # Display Units ("mm" or "inch") for length readings
+        self.length_unit: str = "mm"
+
         # Skid Control Data
         self.skid_flow: float = 0.0
         self.skid_pressure: float = 0.0
+        self.skid_total_flow: float = 0.0  # lifetime total flow (placeholder until wired)
 
         # System Data
         self.timestamp: datetime = datetime.now(timezone.utc)
@@ -97,9 +101,13 @@ class DashboardData:
                 "tank_level_mm": self.tank_level_mm,
                 "tank_level_percent": self.tank_level_percent,
             },
+            "units": {
+                "length": self.length_unit,
+            },
             "skid": {
                 "skid_flow": self.skid_flow,
                 "skid_pressure": self.skid_pressure,
+                "total_flow": self.skid_total_flow,
             },
             "system": {
                 "timestamp": self.timestamp.isoformat(),
@@ -137,10 +145,15 @@ class DashboardData:
             self.tank_level_mm = float(tank.get("tank_level_mm", self.tank_level_mm))
             self.tank_level_percent = float(tank.get("tank_level_percent", self.tank_level_percent))
 
+        if "units" in data:
+            units = data["units"]
+            self.length_unit = str(units.get("length", self.length_unit))
+
         if "skid" in data:
             skid = data["skid"]
             self.skid_flow = float(skid.get("skid_flow", self.skid_flow))
             self.skid_pressure = float(skid.get("skid_pressure", self.skid_pressure))
+            self.skid_total_flow = float(skid.get("total_flow", self.skid_total_flow))
 
         if "system" in data:
             system = data["system"]

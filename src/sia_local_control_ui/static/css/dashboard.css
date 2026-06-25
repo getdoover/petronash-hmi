@@ -62,6 +62,26 @@ body {
     vertical-align: middle;
 }
 
+.dashboard-header h1 {
+    display: flex;
+    align-items: center;
+}
+
+.title-logo {
+    /* Both logo images are cropped to their content, so equal height = equal mark height */
+    height: 1.28em;
+    width: auto;
+    vertical-align: middle;
+}
+
+.title-logo-left {
+    margin-right: 20px;
+}
+
+.title-logo-right {
+    margin-left: 20px;
+}
+
 .connection-status {
     display: flex;
     align-items: center;
@@ -98,21 +118,13 @@ body {
     padding-bottom: clamp(10px, 2vw, 30px);
 }
 
-/* Pump and Skid row - 2/3 and 1/3 width */
-.pump-skid-row {
+/* HMI 3-column layout - Pump | Skid | Tank */
+.hmi-grid {
     display: grid;
-    grid-template-columns: 4fr 1fr;
-    gap: 10px; /* clamp(15px, 3vw, 30px); */
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: clamp(10px, 2vw, 20px);
     flex-shrink: 0;
-}
-
-/* Secondary controls row - Solar and Tank side by side */
-.secondary-controls-row {
-    display: grid;
-    grid-template-columns: 1fr 4fr 2fr;
-    gap: 10px; /* clamp(15px, 3vw, 30px); */
-    flex-shrink: 0;
-    margin-b
+    align-items: stretch;
 }
 
 /* Control sections */
@@ -154,6 +166,57 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(clamp(100px, 12vw, 160px), 1fr));
     gap: clamp(8px, 1.5vw, 15px);
+}
+
+/* Vertical card stack (Pump and Skid columns).
+   Compound selector keeps higher specificity than the responsive
+   .controls-grid overrides so cards always stay stacked. */
+.controls-grid.controls-grid-vertical {
+    grid-template-columns: 1fr;
+}
+
+/* Vertical tank level gauge */
+.tank-gauge-wrap {
+    display: flex;
+    gap: clamp(12px, 2vw, 24px);
+    align-items: stretch;
+    padding: clamp(8px, 1.5vw, 15px) clamp(4px, 1vw, 10px);
+}
+
+.tank-gauge {
+    position: relative;
+    width: clamp(56px, 7vw, 90px);
+    min-height: clamp(160px, 28vh, 300px);
+    flex-shrink: 0;
+    background: #ecf0f1;
+    border: 3px solid #bdc3c7;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+}
+
+.tank-gauge-fill {
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(0deg, #27ae60, #2ecc71);
+    transition: height 0.5s ease;
+}
+
+.tank-gauge-fill.medium {
+    background: linear-gradient(0deg, #f39c12, #e67e22);
+}
+
+.tank-gauge-fill.low {
+    background: linear-gradient(0deg, #e74c3c, #c0392b);
+}
+
+.tank-gauge-readouts {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: clamp(12px, 2.5vh, 28px);
+    flex: 1;
 }
 
 /* Selected pump highlighting */
@@ -469,16 +532,16 @@ body {
         align-items: center;
     }
     
-    .pump-skid-row {
+    .hmi-grid {
         grid-template-columns: 1fr;
     }
-    
-    .secondary-controls-row {
-        grid-template-columns: 1fr;
-    }
-    
+
     .controls-grid {
         grid-template-columns: repeat(auto-fit, minmax(clamp(100px, 25vw, 150px), 1fr));
+    }
+
+    .controls-grid-vertical {
+        grid-template-columns: 1fr;
     }
 }
 
