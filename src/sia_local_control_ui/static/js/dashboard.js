@@ -70,6 +70,10 @@ class Dashboard {
         this.faultMessageList = document.getElementById('fault-message-list');
         this.faultInstructions = document.querySelector('.fault-popover-instructions');
 
+        // Alarm popover (setpoint exceedance detected client-side)
+        this.alarmPopover = document.getElementById('alarm-popover');
+        this.alarmMessageList = document.getElementById('alarm-message-list');
+
         // Valve control popup
         this.valveControlPopup = document.getElementById('valve-control-popup');
     }
@@ -151,12 +155,57 @@ class Dashboard {
             });
         });
         
+        // Dev toolbar (only present when the server runs in dev mode)
+        const devButtons = document.querySelectorAll('.dev-btn[data-alarm]');
+        devButtons.forEach((button) => {
+            button.addEventListener('click', (e) => {
+                this.devTriggerAlarm(e.currentTarget.getAttribute('data-alarm'));
+            });
+        });
+
         // Request initial data
         setTimeout(() => {
             if (this.isConnected) {
                 this.socket.emit('request_data');
             }
         }, 1000);
+    }
+
+    // Dev helper: force a reading past (or back within) its setpoint, then re-render + re-check.
+    devTriggerAlarm(kind) {
+        // Work off the last received data so setpoints/units stay consistent
+        const d = this.data || {};
+        d.skid = d.skid || {};
+        d.tank = d.tank || {};
+        const a = d.alarms || {};
+
+        switch (kind) {
+            case 'pressure_high':
+                d.skid.skid_pressure = (a.pressure_high ?? 0) + 500;
+                break;
+            case 'flow_high':
+                d.skid.skid_flow = (a.flow_high ?? 0) + 20;
+                break;
+            case 'flow_low':
+                d.skid.skid_flow = Math.max(0, (a.flow_low ?? 0) - 5);
+                break;
+            case 'tank_low':
+                d.tank.tank_level_mm = Math.max(0, (a.tank_level_low ?? 0) - 25.4);
+                break;
+            case 'clear':
+                // Reset every monitored reading to a safe value derived from its setpoints
+                if (a.pressure_high != null) d.skid.skid_pressure = a.pressure_high * 0.5;
+                if (a.flow_high != null && a.flow_low != null) {
+                    d.skid.skid_flow = (a.flow_high + a.flow_low) / 2;
+                }
+                if (a.tank_level_low != null) d.tank.tank_level_mm = a.tank_level_low + 500;
+                break;
+            default:
+                return;
+        }
+
+        this.data = d;
+        this.updateDashboard(d);
     }
     
     updateConnectionStatus(connected) {
@@ -238,6 +287,58 @@ class Dashboard {
         // Update alarm setpoint readouts
         if (data.alarms) {
             this.updateAlarmLevels(data.alarms);
+        }
+
+        // Detect any live reading that has exceeded its alarm setpoint
+        this.checkAlarms();
+    }
+
+    // Compare live readings against their alarm setpoints; show the popover for any breach.
+    checkAlarms() {
+        const d = this.data || {};
+        const skid = d.skid || {};
+        const tank = d.tank || {};
+        const a = d.alarms || {};
+        const messages = [];
+
+        if (skid.skid_pressure != null && a.pressure_high != null && skid.skid_pressure > a.pressure_high) {
+            messages.push(`High Pressure — ${skid.skid_pressure.toFixed(1)} psi (limit ${a.pressure_high.toFixed(1)} psi)`);
+        }
+        if (skid.skid_flow != null && a.flow_high != null && skid.skid_flow > a.flow_high) {
+            messages.push(`High Flow — ${skid.skid_flow.toFixed(1)} GPD (limit ${a.flow_high.toFixed(1)} GPD)`);
+        }
+        if (skid.skid_flow != null && a.flow_low != null && skid.skid_flow < a.flow_low) {
+            messages.push(`Low Flow — ${skid.skid_flow.toFixed(1)} GPD (limit ${a.flow_low.toFixed(1)} GPD)`);
+        }
+        if (tank.tank_level_mm != null && a.tank_level_low != null && tank.tank_level_mm < a.tank_level_low) {
+            messages.push(`Low Tank Level — ${this.formatLength(tank.tank_level_mm)} (limit ${this.formatLength(a.tank_level_low)})`);
+        }
+
+        this.renderAlarmPopover(messages);
+    }
+
+    // Format a millimetre value in the active length unit (mm or inches)
+    formatLength(mm) {
+        if (this.lengthUnit === 'inch') {
+            return `${(mm / 25.4).toFixed(1)}"`;
+        }
+        return `${Math.round(mm)} mm`;
+    }
+
+    renderAlarmPopover(messages) {
+        if (!this.alarmPopover || !this.alarmMessageList) {
+            return;
+        }
+        this.alarmMessageList.innerHTML = '';
+        if (messages.length > 0) {
+            messages.forEach((message) => {
+                const item = document.createElement('li');
+                item.textContent = message;
+                this.alarmMessageList.appendChild(item);
+            });
+            this.alarmPopover.classList.remove('hidden');
+        } else {
+            this.alarmPopover.classList.add('hidden');
         }
     }
     

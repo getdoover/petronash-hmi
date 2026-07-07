@@ -204,10 +204,12 @@ class DashboardData:
 class SiaDashboard:
     """Flask dashboard with WebSocket support for SIA Local Control UI."""
     
-    def __init__(self, host: str = "0.0.0.0", port: int = 8091, debug: bool = False):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8091, debug: bool = False, dev_mode: bool = False):
         self.host = host
         self.port = port
         self.debug = debug
+        # dev_mode renders an on-screen dev toolbar for manually triggering alarms
+        self.dev_mode = dev_mode
         
         # Create Flask app
         self.app = Flask(__name__, 
@@ -237,7 +239,7 @@ class SiaDashboard:
         
         @self.app.route('/')
         def index():
-            return render_template('dashboard.html')
+            return render_template('dashboard.html', dev_mode=self.dev_mode)
         
         @self.app.route('/api/data')
         def get_data():

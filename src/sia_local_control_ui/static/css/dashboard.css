@@ -553,6 +553,66 @@ body {
     font-weight: 500;
 }
 
+/* Alarm popover: amber accent to distinguish setpoint alarms from pump-trip faults */
+.alarm-popover {
+    background: rgba(230, 126, 34, 0.96);
+    z-index: 1004;
+}
+
+/* Dev-only toolbar for manually triggering alarms */
+.dev-toolbar {
+    position: fixed;
+    left: 50%;
+    bottom: clamp(8px, 2vh, 20px);
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: clamp(6px, 1vw, 12px);
+    padding: clamp(8px, 1.2vw, 12px) clamp(12px, 1.8vw, 18px);
+    background: rgba(20, 24, 40, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    z-index: 1006;
+    backdrop-filter: blur(8px);
+}
+
+.dev-toolbar-label {
+    color: #f1c40f;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    margin-right: 4px;
+}
+
+.dev-btn {
+    border: none;
+    border-radius: 999px;
+    padding: clamp(6px, 0.9vw, 9px) clamp(10px, 1.4vw, 16px);
+    font-size: clamp(0.75rem, 1.4vw, 0.9rem);
+    font-weight: 600;
+    color: #fff;
+    background: #e67e22;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.2s ease;
+}
+
+.dev-btn:hover {
+    background: #d35400;
+}
+
+.dev-btn:active {
+    transform: scale(0.95);
+}
+
+.dev-btn-clear {
+    background: #3498db;
+}
+
+.dev-btn-clear:hover {
+    background: #2980b9;
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
     .dashboard-header {

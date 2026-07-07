@@ -146,6 +146,15 @@
         </div>
     </div>
 
+    <!-- Alarm popover: shown when a live reading exceeds its alarm setpoint -->
+    <div id="alarm-popover" class="fault-popover alarm-popover hidden">
+        <div class="fault-popover-content">
+            <h2>Alarm</h2>
+            <ul id="alarm-message-list"></ul>
+            <p class="fault-popover-instructions">Correct the condition to clear the alarm.</p>
+        </div>
+    </div>
+
     <div id="valve-control-popup" class="valve-control-popup hidden">
         <div class="valve-control-popup-content">
             <p class="valve-popup-main">Valve Control Disabled</p>
@@ -166,6 +175,18 @@
     <div class="footer-logo">
         <img src="{{ url_for('static', filename='Doover Logo - Landscape - Frost White.svg') }}" alt="Doover Logo">
     </div>
+
+    {% if dev_mode %}
+    <!-- Dev-only toolbar: manually force an alarm condition to test the popover -->
+    <div id="dev-toolbar" class="dev-toolbar">
+        <span class="dev-toolbar-label"><i class="fas fa-flask"></i> Dev</span>
+        <button type="button" class="dev-btn" data-alarm="pressure_high">High Pressure</button>
+        <button type="button" class="dev-btn" data-alarm="tank_low">Low Tank</button>
+        <button type="button" class="dev-btn" data-alarm="flow_high">High Flow</button>
+        <button type="button" class="dev-btn" data-alarm="flow_low">Low Flow</button>
+        <button type="button" class="dev-btn dev-btn-clear" data-alarm="clear">Clear</button>
+    </div>
+    {% endif %}
 
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
