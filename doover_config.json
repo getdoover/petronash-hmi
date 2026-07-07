@@ -75,15 +75,15 @@
                 },
                 "display_units": {
                     "enum": [
-                        "Millimeter (mm)",
-                        "Inch (\")"
+                        "Inch (\")",
+                        "Millimeter (mm)"
                     ],
                     "title": "Display Units",
                     "x-name": "display_units",
                     "x-hidden": false,
                     "type": "string",
                     "description": "Units used for length readings (e.g. tank level) on the screen",
-                    "default": "Millimeter (mm)"
+                    "default": "Inch (\")"
                 }
             },
             "additionalElements": true,

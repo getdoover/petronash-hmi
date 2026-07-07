@@ -553,6 +553,22 @@ body {
     font-weight: 500;
 }
 
+/* Screen dim shown behind the alarm popover while an alarm is active.
+   Sits above the dashboard content but below the popover, and fades in/out. */
+.alarm-dim {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 1003;
+}
+
+.alarm-dim.active {
+    opacity: 1;
+}
+
 /* Alarm popover: amber accent to distinguish setpoint alarms from pump-trip faults */
 .alarm-popover {
     background: rgba(230, 126, 34, 0.96);

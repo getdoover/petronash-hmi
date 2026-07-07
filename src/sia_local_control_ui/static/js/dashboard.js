@@ -39,7 +39,7 @@ class Dashboard {
         this.tankProgress = document.getElementById('tank-progress');
 
         // Display units for length readings ("mm" or "inch"); raw value always stored in mm
-        this.lengthUnit = 'mm';
+        this.lengthUnit = 'inch';
         this.tankLevelRawMm = 0;
 
         // Skid controls
@@ -73,6 +73,7 @@ class Dashboard {
         // Alarm popover (setpoint exceedance detected client-side)
         this.alarmPopover = document.getElementById('alarm-popover');
         this.alarmMessageList = document.getElementById('alarm-message-list');
+        this.alarmDim = document.getElementById('alarm-dim');
 
         // Valve control popup
         this.valveControlPopup = document.getElementById('valve-control-popup');
@@ -337,8 +338,10 @@ class Dashboard {
                 this.alarmMessageList.appendChild(item);
             });
             this.alarmPopover.classList.remove('hidden');
+            this.alarmDim?.classList.add('active');
         } else {
             this.alarmPopover.classList.add('hidden');
+            this.alarmDim?.classList.remove('active');
         }
     }
     

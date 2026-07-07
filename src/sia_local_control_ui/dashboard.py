@@ -38,8 +38,8 @@ class DashboardData:
         self.tank_level_mm: float = 0.0
         self.tank_level_percent: float = 0.0
 
-        # Display Units ("mm" or "inch") for length readings
-        self.length_unit: str = "mm"
+        # Display Units ("mm" or "inch") for length readings; defaults to inches
+        self.length_unit: str = "inch"
 
         # Skid Control Data
         self.skid_flow: float = 0.0

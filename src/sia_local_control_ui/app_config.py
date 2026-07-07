@@ -27,8 +27,8 @@ class SiaLocalControlUiConfig(config.Schema):
 
         self.display_units = config.Enum(
             "Display Units",
-            choices=['Millimeter (mm)', 'Inch (")'],
-            default='Millimeter (mm)',
+            choices=['Inch (")', 'Millimeter (mm)'],
+            default='Inch (")',
             description="Units used for length readings (e.g. tank level) on the screen",
         )
 

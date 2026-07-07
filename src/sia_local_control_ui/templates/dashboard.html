@@ -124,12 +124,12 @@
                             </div>
                             <div class="value-display" id="tank-level-mm">
                                 <span class="value">0</span>
-                                <span class="unit">mm</span>
+                                <span class="unit">"</span>
                             </div>
                             <div class="alarm-level">
                                 <span class="alarm-label">Low Alarm:</span>
                                 <span class="alarm-value" id="tank-level-low-alarm">0</span>
-                                <span class="alarm-unit" id="tank-level-low-alarm-unit">mm</span>
+                                <span class="alarm-unit" id="tank-level-low-alarm-unit">"</span>
                             </div>
                         </div>
                     </div>
@@ -145,6 +145,9 @@
             <p class="fault-popover-instructions">Press the start button to clear the faults.</p>
         </div>
     </div>
+
+    <!-- Screen dim behind the alarm popover; fades in while an alarm is active -->
+    <div id="alarm-dim" class="alarm-dim"></div>
 
     <!-- Alarm popover: shown when a live reading exceeds its alarm setpoint -->
     <div id="alarm-popover" class="fault-popover alarm-popover hidden">
