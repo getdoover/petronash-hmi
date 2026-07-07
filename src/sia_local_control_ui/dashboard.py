@@ -63,8 +63,8 @@ class DashboardData:
         }
 
         # Alarm setpoints (display only for now; wire to config/pump apps later)
-        self.pressure_high_alarm: float = 4.5     # psi
-        self.tank_level_low_alarm: float = 300.0  # mm (rendered in the active length unit)
+        self.pressure_high_alarm: float = 1500.0  # psi
+        self.tank_level_low_alarm: float = 101.6  # mm (= 4 inches; rendered in the active length unit)
         self.flow_high_alarm: float = 40.0        # GPD
         self.flow_low_alarm: float = 10.0         # GPD
 
