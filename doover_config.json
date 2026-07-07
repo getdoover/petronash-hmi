@@ -18,20 +18,21 @@
             "title": "Application Config",
             "type": "object",
             "properties": {
-                "pump_controllers": {
-                    "title": "Pump Controllers",
-                    "x-name": "pump_controllers",
+                "pump_1_app": {
+                    "format": "doover-application",
+                    "title": "Pump 1 App",
+                    "x-name": "pump_1_app",
                     "x-hidden": false,
-                    "type": "array",
-                    "description": "List of pump controller applications",
-                    "items": {
-                        "format": "doover-application",
-                        "title": "Pump Controller",
-                        "x-name": "pump_controller",
-                        "x-hidden": false,
-                        "type": "string",
-                        "description": "A pump controller application"
-                    }
+                    "type": "string",
+                    "description": "The pump controller application for pump 1"
+                },
+                "pump_2_app": {
+                    "format": "doover-application",
+                    "title": "Pump 2 App",
+                    "x-name": "pump_2_app",
+                    "x-hidden": false,
+                    "type": "string",
+                    "description": "The pump controller application for pump 2"
                 },
                 "solar_controllers": {
                     "title": "Solar Controllers",
@@ -87,7 +88,8 @@
             },
             "additionalElements": true,
             "required": [
-                "pump_controllers",
+                "pump_1_app",
+                "pump_2_app",
                 "solar_controllers",
                 "flow_sensor_app",
                 "pressure_sensor_app",

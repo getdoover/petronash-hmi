@@ -127,6 +127,16 @@ body {
     align-items: stretch;
 }
 
+/* 4-column layout when a second pump is configured - Pump 1 | Pump 2 | Skid | Tank */
+.hmi-grid.with-pump2 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* Pump 2 section is hidden until the app reports a second pump app is configured */
+.control-section.hidden {
+    display: none;
+}
+
 /* Control sections */
 .control-section {
     background: rgba(255, 255, 255, 0.95);
@@ -173,6 +183,29 @@ body {
    .controls-grid overrides so cards always stay stacked. */
 .controls-grid.controls-grid-vertical {
     grid-template-columns: 1fr;
+}
+
+/* Alarm setpoint readouts (shown under the relevant value) */
+.alarm-level {
+    margin-top: clamp(4px, 0.8vh, 8px);
+    text-align: center;
+    font-size: clamp(0.7rem, 1.4vw, 0.85rem);
+    line-height: 1.4;
+    color: #e74c3c;
+    font-weight: 700;
+}
+
+.alarm-level .alarm-label {
+    color: #7f8c8d;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+.alarm-level .alarm-unit {
+    color: #95a5a6;
+    font-weight: 500;
+    margin-left: 2px;
+    font-size: 0.85em;
 }
 
 /* Vertical tank level gauge */
@@ -532,7 +565,8 @@ body {
         align-items: center;
     }
     
-    .hmi-grid {
+    .hmi-grid,
+    .hmi-grid.with-pump2 {
         grid-template-columns: 1fr;
     }
 

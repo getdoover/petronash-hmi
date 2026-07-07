@@ -25,6 +25,13 @@ class Dashboard {
         // Pump controls
         this.pumpState = document.getElementById('pump-state').querySelector('.state-value');
 
+        // Pump 2 controls (only shown when a second pump app is configured)
+        this.hmiGrid = document.querySelector('.hmi-grid');
+        this.pump1Heading = document.getElementById('pump1-heading');
+        this.pump2Section = document.getElementById('pump2-section');
+        this.pump2State = document.getElementById('pump2-state').querySelector('.state-value');
+        this.pump2Pressure = document.getElementById('pump2-pressure').querySelector('.value');
+
         // Tank controls
         this.tankLevelMm = document.getElementById('tank-level-mm').querySelector('.value');
         this.tankLevelUnit = document.getElementById('tank-level-mm').querySelector('.unit');
@@ -39,6 +46,16 @@ class Dashboard {
         this.skidFlow = document.getElementById('skid-flow').querySelector('.value');
         this.skidPressure = document.getElementById('skid-pressure').querySelector('.value');
         this.skidTotalFlow = document.getElementById('skid-total-flow').querySelector('.value');
+
+        // Alarm setpoint readouts (display only for now)
+        this.pressureHighAlarm = document.getElementById('pressure-high-alarm');
+        this.pump2PressureHighAlarm = document.getElementById('pump2-pressure-high-alarm');
+        this.flowHighAlarm = document.getElementById('flow-high-alarm');
+        this.flowLowAlarm = document.getElementById('flow-low-alarm');
+        // Tank low alarm: raw value always mm, displayed in the active length unit
+        this.tankLevelLowAlarm = document.getElementById('tank-level-low-alarm');
+        this.tankLevelLowAlarmUnit = document.getElementById('tank-level-low-alarm-unit');
+        this.tankLevelLowAlarmRawMm = 0;
         
         this.systemStatus = document.getElementById('system-status')?.querySelector('.status-value');
         
@@ -181,6 +198,11 @@ class Dashboard {
             this.updatePumpData(data.pump);
         }
 
+        // Update pump 2 data (card only shows when a second pump app is configured)
+        if (data.pump2) {
+            this.updatePump2Data(data.pump2);
+        }
+
         // Apply display units before rendering values that depend on them
         if (data.units) {
             this.updateUnits(data.units);
@@ -212,6 +234,11 @@ class Dashboard {
         } else {
             this.updateFaults({});
         }
+
+        // Update alarm setpoint readouts
+        if (data.alarms) {
+            this.updateAlarmLevels(data.alarms);
+        }
     }
     
     updatePumpData(pumpData) {
@@ -221,14 +248,82 @@ class Dashboard {
         }
     }
 
+    updatePump2Data(pump2Data) {
+        // Show/hide the whole Pump 2 column based on whether a second pump is configured
+        const enabled = pump2Data.enabled !== false;
+        this.setPump2Visible(enabled);
+        if (!enabled) {
+            return;
+        }
+
+        // Update pump 2 state
+        if (pump2Data.pump_state !== undefined) {
+            const state = pump2Data.pump_state;
+            this.pump2State.textContent = state;
+            this.pump2State.className = `state-value ${state.toLowerCase()}`;
+        }
+    }
+
+    setPump2Visible(visible) {
+        if (!this.pump2Section) {
+            return;
+        }
+        if (visible) {
+            this.pump2Section.classList.remove('hidden');
+            this.hmiGrid?.classList.add('with-pump2');
+            if (this.pump1Heading) {
+                this.pump1Heading.innerHTML = '<i class="fas fa-pump"></i> Pump 1';
+            }
+        } else {
+            this.pump2Section.classList.add('hidden');
+            this.hmiGrid?.classList.remove('with-pump2');
+            if (this.pump1Heading) {
+                this.pump1Heading.innerHTML = '<i class="fas fa-pump"></i> Pump';
+            }
+        }
+    }
+
+    updateAlarmLevels(alarms) {
+        if (alarms.pressure_high !== undefined) {
+            const v = alarms.pressure_high.toFixed(1);
+            if (this.pressureHighAlarm) this.pressureHighAlarm.textContent = v;
+            if (this.pump2PressureHighAlarm) this.pump2PressureHighAlarm.textContent = v;
+        }
+        if (alarms.flow_high !== undefined && this.flowHighAlarm) {
+            this.flowHighAlarm.textContent = alarms.flow_high.toFixed(1);
+        }
+        if (alarms.flow_low !== undefined && this.flowLowAlarm) {
+            this.flowLowAlarm.textContent = alarms.flow_low.toFixed(1);
+        }
+        // Tank low alarm stored in mm; rendered in whichever length unit is active
+        if (alarms.tank_level_low !== undefined) {
+            this.tankLevelLowAlarmRawMm = alarms.tank_level_low;
+            this.renderTankLowAlarm();
+        }
+    }
+
+    renderTankLowAlarm() {
+        if (!this.tankLevelLowAlarm) {
+            return;
+        }
+        if (this.lengthUnit === 'inch') {
+            if (this.tankLevelLowAlarmUnit) this.tankLevelLowAlarmUnit.textContent = '"';
+            this.tankLevelLowAlarm.textContent = (this.tankLevelLowAlarmRawMm / 25.4).toFixed(1);
+        } else {
+            if (this.tankLevelLowAlarmUnit) this.tankLevelLowAlarmUnit.textContent = 'mm';
+            this.tankLevelLowAlarm.textContent = Math.round(this.tankLevelLowAlarmRawMm).toString();
+        }
+    }
+
     updateUnits(unitsData) {
         // Length unit toggles tank level between millimeters and inches
         if (unitsData.length !== undefined) {
             const unit = unitsData.length === 'inch' ? 'inch' : 'mm';
             if (unit !== this.lengthUnit) {
                 this.lengthUnit = unit;
-                // Re-render the tank reading in the new unit
+                // Re-render the tank reading and its low alarm in the new unit
                 this.renderTankLevel();
+                this.renderTankLowAlarm();
             }
         }
     }
@@ -265,9 +360,12 @@ class Dashboard {
             this.animateValueChange(this.skidFlow, skidData.skid_flow.toFixed(1));
         }
 
-        // Update skid pressure
+        // Update skid pressure (shared across both pump columns)
         if (skidData.skid_pressure !== undefined) {
             this.animateValueChange(this.skidPressure, skidData.skid_pressure.toFixed(1));
+            if (this.pump2Pressure) {
+                this.animateValueChange(this.pump2Pressure, skidData.skid_pressure.toFixed(1));
+            }
         }
 
         // Update total flow over lifetime of the skid

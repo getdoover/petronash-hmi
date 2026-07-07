@@ -39,9 +39,9 @@ class SiaLocalControlUiApplication(Application):
         log.info("Dashboard started on port 8091")
     async def setup_valve_control(self):
         
-        self.start_btn_pin = self._deployment_config[self.config.pump_controllers.elements[0].value]["local_control"][0]["start_button_pin"]
-        self.stop_btn_pin = self._deployment_config[self.config.pump_controllers.elements[0].value]["local_control"][0]["stop_button_pin"]
-        self.valve_control_pin = self._deployment_config[self.config.pump_controllers.elements[0].value]["calibration_output_pin"]
+        self.start_btn_pin = self._deployment_config[self.config.pump_1_app.value]["local_control"][0]["start_button_pin"]
+        self.stop_btn_pin = self._deployment_config[self.config.pump_1_app.value]["local_control"][0]["stop_button_pin"]
+        self.valve_control_pin = self._deployment_config[self.config.pump_1_app.value]["calibration_output_pin"]
         
         self.start_btn_lstn = self.platform_iface.start_di_pulse_listener(
             self.start_btn_pin, 
@@ -61,8 +61,8 @@ class SiaLocalControlUiApplication(Application):
         logging.info("Start button pressed")
         # open valve
         if self.selector_state == 3:
-            p1_state = self.get_tag("AppState", self.config.pump_controllers.elements[0].value)
-            p2_state = self.get_tag("AppState", self.config.pump_controllers.elements[1].value)
+            p1_state = self.get_tag("AppState", self.config.pump_1_app.value)
+            p2_state = self.get_tag("AppState", self.config.pump_2_app.value)
             if "calibration" not in [p1_state, p2_state]:
                 logging.info("Opening valve")
                 await self.set_do(self.valve_control_pin, 0)
@@ -73,8 +73,8 @@ class SiaLocalControlUiApplication(Application):
         logging.info("Stop button pressed")
         # close valve
         if self.selector_state == 3:
-            p1_state = self.get_tag("AppState", self.config.pump_controllers.elements[0].value)
-            p2_state = self.get_tag("AppState", self.config.pump_controllers.elements[1].value)
+            p1_state = self.get_tag("AppState", self.config.pump_1_app.value)
+            p2_state = self.get_tag("AppState", self.config.pump_2_app.value)
             if "calibration" not in [p1_state, p2_state]:
                 logging.info("Closing valve")
                 await self.set_do(self.valve_control_pin, 1)
@@ -84,10 +84,10 @@ class SiaLocalControlUiApplication(Application):
     async def setup_selector(self):
         self._deployment_config = await self.device_agent.get_channel_aggregate_async("deployment_config")
         self._deployment_config = self._deployment_config["applications"]
-        local_control = self._deployment_config[self.config.pump_controllers.elements[0].value]["local_control"]
+        local_control = self._deployment_config[self.config.pump_1_app.value]["local_control"]
 
-        self.pump_1_selector = self._deployment_config[self.config.pump_controllers.elements[0].value]["local_control"][0]["pump_selector_pin"]
-        self.pump_2_selector = self._deployment_config[self.config.pump_controllers.elements[1].value]["local_control"][0]["pump_selector_pin"]
+        self.pump_1_selector = self._deployment_config[self.config.pump_1_app.value]["local_control"][0]["pump_selector_pin"]
+        self.pump_2_selector = self._deployment_config[self.config.pump_2_app.value]["local_control"][0]["pump_selector_pin"]
         
         self.selector_state = None
         p1_sel = await self.get_ai(self.pump_1_selector)
@@ -164,19 +164,20 @@ class SiaLocalControlUiApplication(Application):
         
             # Get pump control data from simulators
         update_data["pump"] = {
-            "target_rate": self.get_tag("TargetRate", self.config.pump_controllers.elements[0].value),
-            "flow_rate": self.get_tag("FlowRate", self.config.pump_controllers.elements[0].value),
-            "pump_state": self.get_tag("StateString", self.config.pump_controllers.elements[0].value)
+            "target_rate": self.get_tag("TargetRate", self.config.pump_1_app.value),
+            "flow_rate": self.get_tag("FlowRate", self.config.pump_1_app.value),
+            "pump_state": self.get_tag("StateString", self.config.pump_1_app.value)
         }
         
         # Get pump 2 control data from simulators
-        if len(self.config.pump_controllers.elements) > 1:
-            pump2_target_rate = self.get_tag("TargetRate", self.config.pump_controllers.elements[1].value)
-            pump2_flow_rate = self.get_tag("FlowRate", self.config.pump_controllers.elements[1].value)
-            pump2_pump_state = self.get_tag("StateString", self.config.pump_controllers.elements[1].value)
+        if self.config.pump_2_app.value:
+            pump2_target_rate = self.get_tag("TargetRate", self.config.pump_2_app.value)
+            pump2_flow_rate = self.get_tag("FlowRate", self.config.pump_2_app.value)
+            pump2_pump_state = self.get_tag("StateString", self.config.pump_2_app.value)
 
-            # Update pump 2 data
+            # Update pump 2 data (enabled tells the dashboard to render the Pump 2 card)
             update_data["pump2"] = {
+                "enabled": True,
                 "target_rate": pump2_target_rate,
                 "flow_rate": pump2_flow_rate,
                 "pump_state": pump2_pump_state
@@ -187,8 +188,8 @@ class SiaLocalControlUiApplication(Application):
             self.valve_control_state = valv_ctrl_state
         update_data["valve"] = { "state": self.valve_control_state }
         
-        self.pump_1_state = self.get_tag("AppState", self.config.pump_controllers.elements[0].value)
-        self.pump_2_state = self.get_tag("AppState", self.config.pump_controllers.elements[1].value)
+        self.pump_1_state = self.get_tag("AppState", self.config.pump_1_app.value)
+        self.pump_2_state = self.get_tag("AppState", self.config.pump_2_app.value)
         
         # Initialize faults dict if not already present
         if "faults" not in update_data:

@@ -5,10 +5,12 @@ from pydoover import config
 
 class SiaLocalControlUiConfig(config.Schema):
     def __init__(self):
-        self.pump_controllers = config.Array(
-            "Pump Controllers",
-            element=config.Application("Pump Controller", description="A pump controller application"),
-            description="List of pump controller applications"
+        self.pump_1_app = config.Application(
+            "Pump 1 App", description="The pump controller application for pump 1"
+        )
+
+        self.pump_2_app = config.Application(
+            "Pump 2 App", description="The pump controller application for pump 2"
         )
         
         self.solar_controllers = config.Array(

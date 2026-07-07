@@ -23,6 +23,7 @@ class DashboardData:
         self.pump_state: str = "standby"
 
         # Pump 2 Control Data
+        self.pump2_enabled: bool = False  # only true when a second pump app is configured
         self.pump2_target_rate: float = 0.0
         self.pump2_flow_rate: float = 0.0
         self.pump2_pump_state: str = "standby"
@@ -61,6 +62,12 @@ class DashboardData:
             "ll_tank_level": False,
         }
 
+        # Alarm setpoints (display only for now; wire to config/pump apps later)
+        self.pressure_high_alarm: float = 4.5     # psi
+        self.tank_level_low_alarm: float = 300.0  # mm (rendered in the active length unit)
+        self.flow_high_alarm: float = 40.0        # GPD
+        self.flow_low_alarm: float = 10.0         # GPD
+
     @staticmethod
     def _to_bool(value: Any, default: bool = False) -> bool:
         """Convert a value to boolean with fallback."""
@@ -81,6 +88,7 @@ class DashboardData:
                 "pump_state": self.pump_state,
             },
             "pump2": {
+                "enabled": self.pump2_enabled,
                 "target_rate": self.pump2_target_rate,
                 "flow_rate": self.pump2_flow_rate,
                 "pump_state": self.pump2_pump_state,
@@ -117,6 +125,12 @@ class DashboardData:
                 "hh_pressure": self.faults["hh_pressure"],
                 "ll_tank_level": self.faults["ll_tank_level"],
             },
+            "alarms": {
+                "pressure_high": self.pressure_high_alarm,
+                "tank_level_low": self.tank_level_low_alarm,
+                "flow_high": self.flow_high_alarm,
+                "flow_low": self.flow_low_alarm,
+            },
         }
 
     def update_from_dict(self, data: Dict[str, Any]):
@@ -129,6 +143,9 @@ class DashboardData:
 
         if "pump2" in data:
             pump2 = data["pump2"]
+            # Presence of pump2 in an update implies a second pump app is configured;
+            # honour an explicit "enabled" flag if the app sends one.
+            self.pump2_enabled = self._to_bool(pump2.get("enabled", True), default=True)
             self.pump2_target_rate = float(pump2.get("target_rate", self.pump2_target_rate))
             self.pump2_flow_rate = float(pump2.get("flow_rate", self.pump2_flow_rate))
             self.pump2_pump_state = str(pump2.get("pump_state", self.pump2_pump_state))
@@ -173,6 +190,13 @@ class DashboardData:
                 self.faults["hh_pressure"] = self._to_bool(faults["hh_pressure"], self.faults["hh_pressure"])
             if "ll_tank_level" in faults:
                 self.faults["ll_tank_level"] = self._to_bool(faults["ll_tank_level"], self.faults["ll_tank_level"])
+
+        if "alarms" in data and isinstance(data["alarms"], dict):
+            alarms = data["alarms"]
+            self.pressure_high_alarm = float(alarms.get("pressure_high", self.pressure_high_alarm))
+            self.tank_level_low_alarm = float(alarms.get("tank_level_low", self.tank_level_low_alarm))
+            self.flow_high_alarm = float(alarms.get("flow_high", self.flow_high_alarm))
+            self.flow_low_alarm = float(alarms.get("flow_low", self.flow_low_alarm))
 
         self.timestamp = datetime.now(timezone.utc)
 

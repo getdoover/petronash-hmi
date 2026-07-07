@@ -31,7 +31,7 @@
             <div class="hmi-grid">
                 <!-- Pump Column -->
                 <section class="control-section pump-section">
-                    <h2><i class="fas fa-pump"></i> Pump</h2>
+                    <h2 id="pump1-heading"><i class="fas fa-pump"></i> Pump</h2>
                     <div class="controls-grid controls-grid-vertical">
                         <div class="control-card">
                             <h3>Pump State</h3>
@@ -45,6 +45,36 @@
                                 <span class="value">0.0</span>
                                 <span class="unit">psi</span>
                             </div>
+                            <div class="alarm-level">
+                                <span class="alarm-label">High Alarm:</span>
+                                <span class="alarm-value" id="pressure-high-alarm">0.0</span>
+                                <span class="alarm-unit">psi</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pump 2 Column (only rendered when a second pump app is configured) -->
+                <section class="control-section pump-section hidden" id="pump2-section">
+                    <h2><i class="fas fa-pump"></i> Pump 2</h2>
+                    <div class="controls-grid controls-grid-vertical">
+                        <div class="control-card">
+                            <h3>Pump State</h3>
+                            <div class="state-display" id="pump2-state">
+                                <span class="state-value">standby</span>
+                            </div>
+                        </div>
+                        <div class="control-card">
+                            <h3>Pressure</h3>
+                            <div class="value-display" id="pump2-pressure">
+                                <span class="value">0.0</span>
+                                <span class="unit">psi</span>
+                            </div>
+                            <div class="alarm-level">
+                                <span class="alarm-label">High Alarm:</span>
+                                <span class="alarm-value" id="pump2-pressure-high-alarm">0.0</span>
+                                <span class="alarm-unit">psi</span>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -57,7 +87,17 @@
                             <h3>Flow</h3>
                             <div class="value-display" id="skid-flow">
                                 <span class="value">0.0</span>
-                                <span class="unit">Gal/Hr</span>
+                                <span class="unit">GPD</span>
+                            </div>
+                            <div class="alarm-level">
+                                <span class="alarm-label">High Alarm:</span>
+                                <span class="alarm-value" id="flow-high-alarm">0.0</span>
+                                <span class="alarm-unit">GPD</span>
+                            </div>
+                            <div class="alarm-level">
+                                <span class="alarm-label">Low Alarm:</span>
+                                <span class="alarm-value" id="flow-low-alarm">0.0</span>
+                                <span class="alarm-unit">GPD</span>
                             </div>
                         </div>
                         <div class="control-card">
@@ -85,6 +125,11 @@
                             <div class="value-display" id="tank-level-mm">
                                 <span class="value">0</span>
                                 <span class="unit">mm</span>
+                            </div>
+                            <div class="alarm-level">
+                                <span class="alarm-label">Low Alarm:</span>
+                                <span class="alarm-value" id="tank-level-low-alarm">0</span>
+                                <span class="alarm-unit" id="tank-level-low-alarm-unit">mm</span>
                             </div>
                         </div>
                     </div>
