@@ -1,5 +1,5 @@
 [project]
-name = "sia-local-control-ui"
+name = "petronash-hmi"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -13,8 +13,8 @@ dependencies = [
 ]
 
 [project.scripts]
-doover-app-run = "sia_local_control_ui:main"
-export-config = "sia_local_control_ui.app_config:export"
+doover-app-run = "petronash_hmi:main"
+export-config = "petronash_hmi.app_config:export"
 
 [build-system]
 requires = ["hatchling"]

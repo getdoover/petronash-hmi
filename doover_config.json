@@ -1,15 +1,15 @@
 {
-    "sia_local_control_ui": {
-        "name": "sia_local_control_ui",
-        "display_name": "SIA Local Control UI",
+    "petronash_hmi": {
+        "name": "petronash_hmi",
+        "display_name": "Petronash HMI",
         "type": "DEV",
-        "visibility": "PUB",
+        "visibility": "PRI",
         "allow_many": true,
-        "description": "App for hosting the local control screen server for sia pump controllers",
+        "description": "Petronash local control HMI for SIA pump skids (Aramco) - two-pump control, alarm setpoints and popover",
         "long_description": "README.md",
         "depends_on": [],
         "owner_org_key": "36a22e32-ab81-4a39-b400-869d532a052d",
-        "image_name": "ghcr.io/getdoover/sia-local-control-ui:main",
+        "image_name": "ghcr.io/getdoover/petronash-hmi:main",
         "container_registry_profile_key": "88953909-e9c4-4f81-9ec0-56239d4b0a2e",
         "build_args": "--platform linux/amd64,linux/arm64",
         "config_schema": {
@@ -96,7 +96,7 @@
                 "tank_level_app"
             ]
         },
-        "key": "c01f11da-53f8-4a22-ba00-8ffa1180cd92",
+        "key": "",
         "code_repo_key": null,
         "repo_branch": "main",
         "staging_config": {}

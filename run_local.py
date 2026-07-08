@@ -17,7 +17,7 @@ import time
 # Default the local runner to dev mode; SIA_DEV_MODE=0 (or the real app's default) overrides.
 os.environ.setdefault("SIA_DEV_MODE", "1")
 
-from src.sia_local_control_ui.dashboard import SiaDashboard, DashboardInterface
+from src.petronash_hmi.dashboard import SiaDashboard, DashboardInterface
 
 # dev_mode is resolved from SIA_DEV_MODE inside SiaDashboard
 dashboard = SiaDashboard(host="127.0.0.1", port=8091, debug=False)

@@ -20,4 +20,7 @@ services:
     #   - device_agent
     #   - sample_simulator
     environment:
-      - APP_KEY=sia_local_control_ui-1
+      - APP_KEY=petronash_hmi-1
+      # - PLT_URI=192.168.5.10:50053
+      # - DDA_URI=192.168.5.10:50051
+

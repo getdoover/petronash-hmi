@@ -33,7 +33,7 @@ class SiaLocalControlUiConfig(config.Schema):
         )
 
 def export():
-    SiaLocalControlUiConfig().export(Path(__file__).parents[2] / "doover_config.json", "sia_local_control_ui")
+    SiaLocalControlUiConfig().export(Path(__file__).parents[2] / "doover_config.json", "petronash_hmi")
 
 if __name__ == "__main__":
     export()
