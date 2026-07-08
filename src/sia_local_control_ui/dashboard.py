@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import threading
 import time
 from datetime import datetime, timezone
@@ -11,6 +12,16 @@ from flask_socketio import SocketIO, emit
 import socketio
 
 log = logging.getLogger(__name__)
+
+
+def dev_mode_from_env() -> bool:
+    """Whether dev mode is enabled via the SIA_DEV_MODE environment variable.
+
+    Enabling dev mode renders the on-screen alarm-testing toolbar. Using an env
+    flag means the real app can be launched in test mode without any code change
+    (e.g. `SIA_DEV_MODE=1`), and it stays off by default in production.
+    """
+    return os.environ.get("SIA_DEV_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 class DashboardData:
@@ -204,12 +215,14 @@ class DashboardData:
 class SiaDashboard:
     """Flask dashboard with WebSocket support for SIA Local Control UI."""
     
-    def __init__(self, host: str = "0.0.0.0", port: int = 8091, debug: bool = False, dev_mode: bool = False):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8091, debug: bool = False, dev_mode: bool = None):
         self.host = host
         self.port = port
         self.debug = debug
-        # dev_mode renders an on-screen dev toolbar for manually triggering alarms
-        self.dev_mode = dev_mode
+        # dev_mode renders an on-screen dev toolbar for manually triggering alarms.
+        # When not passed explicitly it's controlled by the SIA_DEV_MODE env flag,
+        # so any way of launching the app (real container or local runner) can opt in.
+        self.dev_mode = dev_mode_from_env() if dev_mode is None else dev_mode
         
         # Create Flask app
         self.app = Flask(__name__, 

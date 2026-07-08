@@ -21,7 +21,7 @@ class SiaLocalControlUiApplication(Application):
 
         self.started: float = time.time()
         
-        # Initialize dashboard
+        # Initialize dashboard (dev toolbar toggles via the SIA_DEV_MODE env flag)
         self.dashboard = SiaDashboard(host="0.0.0.0", port=8091, debug=False)
         self.dashboard_interface = DashboardInterface(self.dashboard)
 
