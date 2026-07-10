@@ -2,303 +2,230 @@ import logging
 import time
 
 from pydoover.docker import Application
-from pydoover import ui
 
-from .app_config import SiaLocalControlUiConfig
-from .dashboard import SiaDashboard, DashboardInterface
+from .app_config import PetronashHmiConfig
+from .app_tags import PetronashHmiTags
+from .app_ui import PetronashHmiUI
+from .dashboard import PetronashDashboard, DashboardInterface
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
-class SiaLocalControlUiApplication(Application):
-    config: SiaLocalControlUiConfig  # not necessary, but helps your IDE provide autocomplete!
+# Selector reads are analog; anything below this counts as "selected".
+SELECTOR_THRESHOLD = 5
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
-        # Suppress platform interface INFO logs
-        platform_logger = logging.getLogger("pydoover.docker.platform.platform")
-        platform_logger.setLevel(logging.WARNING)
+class PetronashHmiApplication(Application):
+    config_cls = PetronashHmiConfig
+    tags_cls = PetronashHmiTags
+    ui_cls = PetronashHmiUI
 
-        self.started: float = time.time()
-        
-        # Initialize dashboard (dev toolbar toggles via the SIA_DEV_MODE env flag)
-        self.dashboard = SiaDashboard(host="0.0.0.0", port=8091, debug=False)
-        self.dashboard_interface = DashboardInterface(self.dashboard)
+    config: PetronashHmiConfig
+    tags: PetronashHmiTags
 
     async def setup(self):
+        # Suppress platform interface INFO logs
+        logging.getLogger("pydoover.docker.platform.platform").setLevel(logging.WARNING)
+
+        self.started: float = time.time()
         self.loop_target_period = 0.5
-        
-        # Start dashboard
+
+        # Dev toolbar toggles via the PETRONASH_DEV_MODE env flag.
+        self.dashboard = PetronashDashboard(host="0.0.0.0", port=8091, debug=False)
+        self.dashboard_interface = DashboardInterface(self.dashboard)
         self.dashboard_interface.start_dashboard()
-        
+
         await self.setup_selector()
-        
         await self.setup_valve_control()
-        
-        
+
         log.info("Dashboard started on port 8091")
+
+    async def setup_selector(self):
+        aggregate = await self.device_agent.fetch_channel_aggregate("deployment_config")
+        self._deployment_config = aggregate.data["applications"]
+
+        pump_1 = self._deployment_config[self.config.pump_1_app.value]
+        pump_2 = self._deployment_config[self.config.pump_2_app.value]
+
+        self.pump_1_selector = pump_1["local_control"][0]["pump_selector_pin"]
+        self.pump_2_selector = pump_2["local_control"][0]["pump_selector_pin"]
+
+        self.selector_state = None
+        await self.refresh_selector_state()
+        self.dashboard_interface.update_selector_state(self.selector_state)
+
     async def setup_valve_control(self):
-        
-        self.start_btn_pin = self._deployment_config[self.config.pump_1_app.value]["local_control"][0]["start_button_pin"]
-        self.stop_btn_pin = self._deployment_config[self.config.pump_1_app.value]["local_control"][0]["stop_button_pin"]
-        self.valve_control_pin = self._deployment_config[self.config.pump_1_app.value]["calibration_output_pin"]
-        
+        pump_1 = self._deployment_config[self.config.pump_1_app.value]
+
+        self.start_btn_pin = pump_1["local_control"][0]["start_button_pin"]
+        self.stop_btn_pin = pump_1["local_control"][0]["stop_button_pin"]
+        self.valve_control_pin = pump_1["calibration_output_pin"]
+
         self.start_btn_lstn = self.platform_iface.start_di_pulse_listener(
-            self.start_btn_pin, 
-            self.start_btn_callback,
-            edge="rising"
-        ) 
-        
-        self.stop_btn_lstn = self.platform_iface.start_di_pulse_listener(
-            self.stop_btn_pin, 
-            self.stop_btn_callback,
-            edge="rising"
+            self.start_btn_pin, self.start_btn_callback, edge="rising"
         )
-        
-        self.valve_control_state = await self.get_do(self.valve_control_pin)
-        
+        self.stop_btn_lstn = self.platform_iface.start_di_pulse_listener(
+            self.stop_btn_pin, self.stop_btn_callback, edge="rising"
+        )
+
+        self.valve_control_state = await self.platform_iface.fetch_do(
+            self.valve_control_pin
+        )
+
+    async def refresh_selector_state(self):
+        """Derive the 3-position selector state from the two pump selector AIs."""
+        p1_sel, p2_sel = await self.platform_iface.fetch_ai(
+            self.pump_1_selector, self.pump_2_selector
+        )
+
+        p1_low = p1_sel < SELECTOR_THRESHOLD
+        p2_low = p2_sel < SELECTOR_THRESHOLD
+
+        if p1_low and p2_low:
+            self.selector_state = 3
+        elif p1_low:
+            self.selector_state = 2
+        elif p2_low:
+            self.selector_state = 1
+        else:
+            self.selector_state = 0
+
+        return self.selector_state
+
+    def _pumps_calibrating(self) -> bool:
+        states = (
+            self.get_tag("AppState", self.config.pump_1_app.value),
+            self.get_tag("AppState", self.config.pump_2_app.value),
+        )
+        return "calibration" in states
+
+    async def _set_valve(self, value: int, action: str):
+        if self.selector_state != 3:
+            return
+
+        if self._pumps_calibrating():
+            await self.dashboard_interface.valve_control_popup()
+            return
+
+        log.info("%s valve", action)
+        await self.platform_iface.set_do(self.valve_control_pin, value)
+
     async def start_btn_callback(self, di, val, dt_secs, counter, edge):
-        logging.info("Start button pressed")
-        # open valve
-        if self.selector_state == 3:
-            p1_state = self.get_tag("AppState", self.config.pump_1_app.value)
-            p2_state = self.get_tag("AppState", self.config.pump_2_app.value)
-            if "calibration" not in [p1_state, p2_state]:
-                logging.info("Opening valve")
-                await self.set_do(self.valve_control_pin, 0)
-            else:
-                await self.dashboard_interface.valve_control_popup()
+        log.info("Start button pressed")
+        await self._set_valve(0, "Opening")
 
     async def stop_btn_callback(self, di, val, dt_secs, counter, edge):
-        logging.info("Stop button pressed")
-        # close valve
-        if self.selector_state == 3:
-            p1_state = self.get_tag("AppState", self.config.pump_1_app.value)
-            p2_state = self.get_tag("AppState", self.config.pump_2_app.value)
-            if "calibration" not in [p1_state, p2_state]:
-                logging.info("Closing valve")
-                await self.set_do(self.valve_control_pin, 1)
-            else:
-                await self.dashboard_interface.valve_control_popup()
-        
-    async def setup_selector(self):
-        self._deployment_config = await self.device_agent.get_channel_aggregate_async("deployment_config")
-        self._deployment_config = self._deployment_config["applications"]
-        local_control = self._deployment_config[self.config.pump_1_app.value]["local_control"]
+        log.info("Stop button pressed")
+        await self._set_valve(1, "Closing")
 
-        self.pump_1_selector = self._deployment_config[self.config.pump_1_app.value]["local_control"][0]["pump_selector_pin"]
-        self.pump_2_selector = self._deployment_config[self.config.pump_2_app.value]["local_control"][0]["pump_selector_pin"]
-        
-        self.selector_state = None
-        p1_sel = await self.get_ai(self.pump_1_selector)
-        p2_sel = await self.get_ai(self.pump_2_selector)
-        
-        if p1_sel < 5 and p2_sel < 5:
-            self.selector_state = 3
-        elif p1_sel < 5 and p2_sel >= 5:
-            self.selector_state = 2
-        elif p1_sel >= 5 and p2_sel < 5:
-            self.selector_state = 1
-        else:
-            self.selector_state = 0
-        self.dashboard_interface.update_selector_state(self.selector_state)
-        
-        # self.p1_selector_hi_lstn = self.platform_iface.start_di_pulse_listener(
-        #     self.pump_1_selector, 
-        #     self.p_selector_hi_callback,
-        #     edge="VI+10")
-        
-        # self.p2_selector_hi_lstn = self.platform_iface.start_di_pulse_listener(
-        #     self.pump_2_selector, 
-        #     self.p_selector_hi_callback,
-        #     edge="VI+10"
-        # )
-        
-        # self.p1_selector_lo_lstn = self.platform_iface.start_di_pulse_listener(
-        #     self.pump_1_selector, 
-        #     self.p_selector_lo_callback,
-        #     edge="VI-10")
-        
-        # self.p2_selector_lo_lstn = self.platform_iface.start_di_pulse_listener(
-        #     self.pump_2_selector, 
-        #     self.p_selector_lo_callback,
-        #     edge="VI-10"
-        # )
-        
-    async def p_selector_hi_callback(self, di, val, dt_secs, counter, edge):
-        if di == self.pump_1_selector:
-            self.dashboard_interface.update_selector_state(1)
-            self.selector_state = 1
-        elif di == self.pump_2_selector:
-            self.dashboard_interface.update_selector_state(2)
-            self.selector_state  = 2
-        log.info(f"Pump {self.selector_state} selector high")
-        
-    async def p_selector_lo_callback(self, di, val, dt_secs, counter, edge):
-        selectors = [self.pump_1_selector, self.pump_2_selector]
-        if di in [self.pump_1_selector, self.pump_2_selector]:
-            selectors.remove(di)
-            if await self.get_ai(selectors[0]) < 5:
-                self.dashboard_interface.update_selector_state(3)
-                log.info("Valve Selected")
-                self.selector_state = 3
     async def main_loop(self):
-        # Update dashboard with example data
         await self.update_dashboard_data()
-    
-    async def update_dashboard_data(self): 
+
+    async def update_dashboard_data(self):
         update_data = {}
-        
-        p1_slt_state, p2_slt_state = await self.get_ai([self.pump_1_selector, self.pump_2_selector])
-        
-        if p1_slt_state <= 5 and p2_slt_state <= 5:
-            self.selector_state = 3
-        elif p1_slt_state < 5 and p2_slt_state >= 5:
-            self.selector_state = 2
-        elif p1_slt_state >= 5 and p2_slt_state < 5:
-            self.selector_state = 1
-        else:
-            self.selector_state = 0
-        # if self.pump_1_selector is not None and self.pump_2_selector is not None:
-        update_data["selector"] = { "state": self.selector_state }
-        
-            # Get pump control data from simulators
+
+        await self.refresh_selector_state()
+        update_data["selector"] = {"state": self.selector_state}
+
         update_data["pump"] = {
             "target_rate": self.get_tag("TargetRate", self.config.pump_1_app.value),
             "flow_rate": self.get_tag("FlowRate", self.config.pump_1_app.value),
-            "pump_state": self.get_tag("StateString", self.config.pump_1_app.value)
+            "pump_state": self.get_tag("StateString", self.config.pump_1_app.value),
         }
-        
-        # Get pump 2 control data from simulators
-        if self.config.pump_2_app.value:
-            pump2_target_rate = self.get_tag("TargetRate", self.config.pump_2_app.value)
-            pump2_flow_rate = self.get_tag("FlowRate", self.config.pump_2_app.value)
-            pump2_pump_state = self.get_tag("StateString", self.config.pump_2_app.value)
 
-            # Update pump 2 data (enabled tells the dashboard to render the Pump 2 card)
-            update_data["pump2"] = {
-                "enabled": True,
-                "target_rate": pump2_target_rate,
-                "flow_rate": pump2_flow_rate,
-                "pump_state": pump2_pump_state
-            }
-        
-        valv_ctrl_state = await self.get_do(self.valve_control_pin)
-        if valv_ctrl_state is not None:
-            self.valve_control_state = valv_ctrl_state
-        update_data["valve"] = { "state": self.valve_control_state }
-        
-        self.pump_1_state = self.get_tag("AppState", self.config.pump_1_app.value)
-        self.pump_2_state = self.get_tag("AppState", self.config.pump_2_app.value)
-        
-        # Initialize faults dict if not already present
-        if "faults" not in update_data:
-            update_data["faults"] = {}
-        
-        # Set or clear low low tank level fault
-        if "tank_level_low_low_level" in [self.pump_1_state, self.pump_2_state]:
-            update_data["faults"]["ll_tank_level"] = True
-        else:
-            update_data["faults"]["ll_tank_level"] = False
-        
-        # Set or clear high high pressure fault
-        if "pressure_high_high_level" in [self.pump_1_state, self.pump_2_state]:
-            update_data["faults"]["hh_pressure"] = True
-        else:
-            update_data["faults"]["hh_pressure"] = False
-            
-        # Get and aggregate solar control data from all simulators
-        battery_voltage = None
-        battery_percentage = None
-        panel_power = None
-        battery_ah = None
+        # "enabled" tells the dashboard to render the Pump 2 card.
+        update_data["pump2"] = {
+            "enabled": True,
+            "target_rate": self.get_tag("TargetRate", self.config.pump_2_app.value),
+            "flow_rate": self.get_tag("FlowRate", self.config.pump_2_app.value),
+            "pump_state": self.get_tag("StateString", self.config.pump_2_app.value),
+        }
 
-        if self.config.solar_controllers:
-            battery_voltages = []
-            battery_percentages = []
-            panel_power_values = []
-            battery_ah_values = []
-            
-            # Collect data from all solar controllers
-            for solar_controller in self.config.solar_controllers.elements:
-                voltage = self.get_tag("b_voltage", solar_controller.value)
-                if voltage is not None:
-                    battery_voltages.append(voltage)
-                percentage = self.get_tag("b_percent", solar_controller.value)
-                if percentage is not None:
-                    battery_percentages.append(percentage)
-                panel_power = self.get_tag("panel_power", solar_controller.value)
-                if panel_power is not None:
-                    panel_power_values.append(panel_power)
-                battery_ah = self.get_tag("remaining_ah", solar_controller.value)
-                if battery_ah is not None:
-                    battery_ah_values.append(battery_ah)
-            
-            # Aggregate data: average voltages/percentages, sum battery_ah
-            if len(battery_voltages):
-                battery_voltage = sum(battery_voltages) / len(battery_voltages)
-            if len(battery_percentages):
-                battery_percentage = sum(battery_percentages) / len(battery_percentages)
+        valve_state = await self.platform_iface.fetch_do(self.valve_control_pin)
+        if valve_state is not None:
+            self.valve_control_state = valve_state
+        update_data["valve"] = {"state": self.valve_control_state}
 
-            if len(panel_power_values):
-                panel_power = sum(panel_power_values) / len(panel_power_values)
+        pump_states = (
+            self.get_tag("AppState", self.config.pump_1_app.value),
+            self.get_tag("AppState", self.config.pump_2_app.value),
+        )
+        update_data["faults"] = {
+            "ll_tank_level": "tank_level_low_low_level" in pump_states,
+            "hh_pressure": "pressure_high_high_level" in pump_states,
+        }
 
-            if len(battery_ah_values):
-                battery_ah = sum(battery_ah_values) / len(battery_ah_values)
-
-        solar_data = {}
-        if battery_voltage is not None:
-            solar_data["battery_voltage"] = battery_voltage
-        if battery_percentage is not None:
-            solar_data["battery_percentage"] = battery_percentage
-        if panel_power is not None:
-            solar_data["panel_power"] = panel_power
-        if battery_ah is not None:
-            solar_data["battery_ah"] = battery_ah
-
+        solar_data = self.aggregate_solar_data()
         if solar_data:
             update_data["solar"] = solar_data
-        
-        # Get tank control data from simulators
-        tank_level_mm = None
-        tank_level_percent = None
-        if self.config.tank_level_app:
-            tank_level_mm = self.get_tag("level_reading", self.config.tank_level_app.value)
-            tank_level_percent = self.get_tag("level_filled_percentage", self.config.tank_level_app.value)
 
         tank_data = {}
-        if tank_level_mm is not None:
-            tank_data["tank_level_mm"] = tank_level_mm*1000
-        if tank_level_percent is not None:
-            tank_data["tank_level_percent"] = tank_level_percent
-
+        if self.config.tank_level_app:
+            # level_reading is published in metres; the dashboard works in mm.
+            level = self.get_tag("level_reading", self.config.tank_level_app.value)
+            percent = self.get_tag(
+                "level_filled_percentage", self.config.tank_level_app.value
+            )
+            if level is not None:
+                tank_data["tank_level_mm"] = level * 1000
+            if percent is not None:
+                tank_data["tank_level_percent"] = percent
         if tank_data:
             update_data["tank"] = tank_data
 
-        # Length unit for on-screen readings, configurable between mm and inches
         length_unit = "inch" if "Inch" in str(self.config.display_units.value) else "mm"
         update_data["units"] = {"length": length_unit}
 
-        skid_flow = None
-        skid_pressure = None
+        skid_data = {}
         if self.config.flow_sensor_app:
             skid_flow = self.get_tag("value", self.config.flow_sensor_app.value)
+            if skid_flow is not None:
+                skid_data["skid_flow"] = skid_flow
         if self.config.pressure_sensor_app:
             skid_pressure = self.get_tag("value", self.config.pressure_sensor_app.value)
-
-        skid_data = {}
-        if skid_flow is not None:
-            skid_data["skid_flow"] = skid_flow
-        if skid_pressure is not None:
-            skid_data["skid_pressure"] = skid_pressure
-
+            if skid_pressure is not None:
+                skid_data["skid_pressure"] = skid_pressure
         if skid_data:
             update_data["skid"] = skid_data
-        
-        # pump_state
-        # Update system status
-        # system_status = "running" if self.state.state == "auto" else "standby"
-        # self.dashboard_interface.update_system_status(system_status)
-        
-        # logging.info(f"Updating dashboard data...")
+
         self.dashboard.update_data(**update_data)
+        await self.publish_tags(update_data)
+
+    def aggregate_solar_data(self) -> dict:
+        """Average battery voltage/percentage/panel power and sum remaining amp-hours."""
+        if not self.config.solar_controllers:
+            return {}
+
+        readings = {
+            "b_voltage": [],
+            "b_percent": [],
+            "panel_power": [],
+            "remaining_ah": [],
+        }
+        for controller in self.config.solar_controllers.elements:
+            for tag_name in readings:
+                value = self.get_tag(tag_name, controller.value)
+                if value is not None:
+                    readings[tag_name].append(value)
+
+        def mean(values):
+            return sum(values) / len(values) if values else None
+
+        def total(values):
+            return sum(values) if values else None
+
+        solar_data = {
+            "battery_voltage": mean(readings["b_voltage"]),
+            "battery_percentage": mean(readings["b_percent"]),
+            "panel_power": mean(readings["panel_power"]),
+            "battery_ah": total(readings["remaining_ah"]),
+        }
+        return {k: v for k, v in solar_data.items() if v is not None}
+
+    async def publish_tags(self, update_data: dict):
+        """Mirror the state this app derives onto its own tags, for the cloud UI."""
+        await self.tags.selector_state.set(self.selector_state)
+        await self.tags.valve_open.set(not self.valve_control_state)
+
+        faults = update_data["faults"]
+        await self.tags.hh_pressure_fault.set(faults["hh_pressure"])
+        await self.tags.ll_tank_level_fault.set(faults["ll_tank_level"])

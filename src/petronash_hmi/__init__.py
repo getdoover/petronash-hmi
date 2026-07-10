@@ -1,10 +1,8 @@
 from pydoover.docker import run_app
 
-from .application import SiaLocalControlUiApplication
-from .app_config import SiaLocalControlUiConfig
+from .application import PetronashHmiApplication
+
 
 def main():
-    """
-    Run the application.
-    """
-    run_app(SiaLocalControlUiApplication(config=SiaLocalControlUiConfig()))
+    """Run the application."""
+    run_app(PetronashHmiApplication())

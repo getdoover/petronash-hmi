@@ -1,20 +1,19 @@
 [project]
 name = "petronash-hmi"
 version = "0.1.0"
-description = "Add your description here"
+description = "Petronash local control HMI for SIA pump skids"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "pydoover>=0.4.13",
-    "transitions>=0.9.2",
+    "pydoover>=1.9.0",
     "flask>=3.0.0",
     "flask-socketio>=5.3.0",
-    "python-socketio>=5.9.0",
 ]
 
 [project.scripts]
 doover-app-run = "petronash_hmi:main"
 export-config = "petronash_hmi.app_config:export"
+export-ui = "petronash_hmi.app_ui:export"
 
 [build-system]
 requires = ["hatchling"]
@@ -27,5 +26,4 @@ dev = [
     "protobuf>=6.30.2",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.26.0",
-    "requests>=2.32.3",
 ]

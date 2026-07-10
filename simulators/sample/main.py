@@ -16,5 +16,6 @@ def main():
     """Run the sample simulator application."""
     run_app(SampleSimulator(config=Schema()))
 
+
 if __name__ == "__main__":
     main()

@@ -1,22 +1,26 @@
-# SIA Local Control Dashboard
+# Petronash HMI Dashboard
 
-A real-time web dashboard for monitoring and controlling SIA Local Control systems, featuring pump control, solar control, and tank monitoring.
+A real-time web dashboard for the local touchscreen panel on a Petronash SIA pump skid,
+featuring two-pump control, solar monitoring, tank level and alarm popovers.
 
 ## Features
 
 ### Pump Control
-- **Target Rate**: Set and monitor target flow rate (L/min)
-- **Flow Rate**: Real-time flow rate monitoring (L/min)
-- **Pump State**: Control pump states (standby, auto, calibration)
+- **Target Rate**: Set and monitor target flow rate (GPD)
+- **Flow Rate**: Real-time flow rate monitoring (GPD)
+- **Pump State**: Pump states (standby, auto, calibration), for pumps 1 and 2
 
 ### Solar Control
-- **Battery Voltage**: Monitor battery voltage levels (V)
+- **Battery Voltage**: Averaged across all configured solar controllers (V)
 - **Battery Percentage**: Visual battery level with progress bar (%)
-- **Array Voltage**: Solar array voltage monitoring (V)
+- **Panel Power / Remaining Ah**: Averaged and summed respectively
 
 ### Tank Control
-- **Tank Level**: Monitor tank levels in both mm and percentage
+- **Tank Level**: Monitor tank levels in inches or mm (see `display_units`) and percentage
 - **System Status**: Overall system status indicator
+
+### Alarms
+- High-pressure and low-tank-level exceedance popovers, dimming the screen behind them
 
 ## Technical Details
 
@@ -29,7 +33,7 @@ A real-time web dashboard for monitoring and controlling SIA Local Control syste
 ### Components
 
 1. **`dashboard.py`**: Core dashboard server and interface classes
-   - `SiaDashboard`: Main Flask server with WebSocket support
+   - `PetronashDashboard`: Main Flask server with WebSocket support
    - `DashboardInterface`: Integration interface for Application class
    - `DashboardData`: Data container with validation
 
@@ -78,16 +82,15 @@ Then open your browser to: `http://127.0.0.1:8091`
 ## Dependencies
 
 - Flask >= 3.0.0
-- Flask-SocketIO >= 5.3.0
-- python-socketio >= 5.9.0
+- Flask-SocketIO >= 5.3.0 (pulls in python-socketio)
 
 ## Configuration
 
-The dashboard can be configured in the Application class:
+The dashboard is constructed in the Application's `setup()`:
 
 ```python
 # In application.py
-self.dashboard = SiaDashboard(
+self.dashboard = PetronashDashboard(
     host="0.0.0.0",  # Bind to all interfaces
     port=8091,       # Dashboard port
     debug=False      # Debug mode

@@ -15,63 +15,76 @@
         "config_schema": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "$id": "",
-            "title": "Application Config",
+            "title": "$default",
             "type": "object",
             "properties": {
                 "pump_1_app": {
-                    "format": "doover-application",
                     "title": "Pump 1 App",
                     "x-name": "pump_1_app",
                     "x-hidden": false,
+                    "format": "doover-resource-application",
                     "type": "string",
-                    "description": "The pump controller application for pump 1"
+                    "x-required": true,
+                    "description": "The pump controller application for pump 1",
+                    "x-position": 0
                 },
                 "pump_2_app": {
-                    "format": "doover-application",
                     "title": "Pump 2 App",
                     "x-name": "pump_2_app",
                     "x-hidden": false,
+                    "format": "doover-resource-application",
                     "type": "string",
-                    "description": "The pump controller application for pump 2"
+                    "x-required": true,
+                    "description": "The pump controller application for pump 2",
+                    "x-position": 1
                 },
                 "solar_controllers": {
                     "title": "Solar Controllers",
                     "x-name": "solar_controllers",
                     "x-hidden": false,
                     "type": "array",
+                    "x-required": true,
                     "description": "List of solar controller applications",
+                    "x-position": 2,
                     "items": {
-                        "format": "doover-application",
                         "title": "Solar Controller",
                         "x-name": "solar_controller",
                         "x-hidden": false,
+                        "format": "doover-resource-application",
                         "type": "string",
+                        "x-required": true,
                         "description": "A solar controller application"
                     }
                 },
                 "flow_sensor_app": {
-                    "format": "doover-application",
                     "title": "Flow Sensor App",
                     "x-name": "flow_sensor_app",
                     "x-hidden": false,
+                    "format": "doover-resource-application",
                     "type": "string",
-                    "description": "A flow sensor application"
+                    "x-required": true,
+                    "description": "A flow sensor application",
+                    "x-position": 3
                 },
                 "pressure_sensor_app": {
-                    "format": "doover-application",
                     "title": "Pressure Sensor App",
                     "x-name": "pressure_sensor_app",
                     "x-hidden": false,
+                    "format": "doover-resource-application",
                     "type": "string",
-                    "description": "A pressure sensor application"
+                    "x-required": true,
+                    "description": "A pressure sensor application",
+                    "x-position": 4
                 },
                 "tank_level_app": {
-                    "format": "doover-application",
                     "title": "Tank Level App",
                     "x-name": "tank_level_app",
                     "x-hidden": false,
+                    "format": "doover-resource-application",
                     "type": "string",
-                    "description": "The tank level application"
+                    "x-required": true,
+                    "description": "The tank level application",
+                    "x-position": 5
                 },
                 "display_units": {
                     "enum": [
@@ -81,9 +94,14 @@
                     "title": "Display Units",
                     "x-name": "display_units",
                     "x-hidden": false,
-                    "type": "string",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-required": false,
                     "description": "Units used for length readings (e.g. tank level) on the screen",
-                    "default": "Inch (\")"
+                    "default": "Inch (\")",
+                    "x-position": 6
                 }
             },
             "additionalElements": true,
@@ -99,6 +117,93 @@
         "key": "",
         "code_repo_key": null,
         "repo_branch": "main",
-        "staging_config": {}
+        "staging_config": {},
+        "ui_schema": {
+            "displayString": "$config.app().APP_DISPLAY_NAME",
+            "hidden": "$config.app().hidden:boolean:false:boolean:false",
+            "position": "$config.app().dv_app_position:number:100",
+            "icon": null,
+            "colour": null,
+            "defaultOpen": "$config.app().dv_app_default_open:boolean",
+            "type": "uiApplication",
+            "name": "$config.app().APP_KEY",
+            "children": {
+                "selector_state": {
+                    "name": "selector_state",
+                    "type": "uiVariable",
+                    "displayString": "Selector",
+                    "showActivity": true,
+                    "position": 51,
+                    "hidden": false,
+                    "varType": "float",
+                    "currentValue": "$tag.app().selector_state:number:null",
+                    "decPrecision": 0,
+                    "ranges": [
+                        {
+                            "min": 0,
+                            "max": 1,
+                            "colour": "blue",
+                            "show_on_graph": true,
+                            "label": "None"
+                        },
+                        {
+                            "min": 1,
+                            "max": 2,
+                            "colour": "blue",
+                            "show_on_graph": true,
+                            "label": "Pump 1"
+                        },
+                        {
+                            "min": 2,
+                            "max": 3,
+                            "colour": "blue",
+                            "show_on_graph": true,
+                            "label": "Pump 2"
+                        },
+                        {
+                            "min": 3,
+                            "max": 4,
+                            "colour": "blue",
+                            "show_on_graph": true,
+                            "label": "Valve"
+                        }
+                    ],
+                    "live": true
+                },
+                "valve_open": {
+                    "name": "valve_open",
+                    "type": "uiVariable",
+                    "displayString": "Valve Open",
+                    "showActivity": true,
+                    "position": 52,
+                    "hidden": false,
+                    "varType": "bool",
+                    "currentValue": "$tag.app().valve_open:boolean:false",
+                    "live": true
+                },
+                "hh_pressure_fault": {
+                    "name": "hh_pressure_fault",
+                    "type": "uiVariable",
+                    "displayString": "High Pressure Alarm",
+                    "showActivity": true,
+                    "position": 53,
+                    "hidden": false,
+                    "varType": "bool",
+                    "currentValue": "$tag.app().hh_pressure_fault:boolean:false",
+                    "live": true
+                },
+                "ll_tank_level_fault": {
+                    "name": "ll_tank_level_fault",
+                    "type": "uiVariable",
+                    "displayString": "Low Tank Level Alarm",
+                    "showActivity": true,
+                    "position": 54,
+                    "hidden": false,
+                    "varType": "bool",
+                    "currentValue": "$tag.app().ll_tank_level_fault:boolean:false",
+                    "live": true
+                }
+            }
+        }
     }
 }
