@@ -3,7 +3,7 @@
         "name": "petronash_hmi",
         "display_name": "Petronash HMI",
         "type": "DEV",
-        "visibility": "PRI",
+        "visibility": "PUB",
         "allow_many": true,
         "description": "Petronash local HMI for SIA pump skids (Aramco) - read-only panel showing pump states, flow/pressure/tank readings, alarm setpoints and volume totaliser",
         "long_description": "README.md",
