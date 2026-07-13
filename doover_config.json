@@ -102,13 +102,29 @@
         "ui_schema": {
             "displayString": "$config.app().APP_DISPLAY_NAME",
             "hidden": "$config.app().hidden:boolean:false:boolean:false",
-            "position": "$config.app().dv_app_position:number:100",
+            "position": "$config.app().dv_app_position:number:0",
             "icon": null,
             "colour": null,
-            "defaultOpen": "$config.app().dv_app_default_open:boolean",
+            "defaultOpen": "$config.app().dv_app_default_open:boolean:true",
             "type": "uiApplication",
             "name": "$config.app().APP_KEY",
-            "children": {}
-        }
+            "children": {
+                "petronash_hmi_widget": {
+                    "name": "petronash_hmi_widget",
+                    "type": "uiRemoteComponent",
+                    "displayString": "Petronash HMI",
+                    "showActivity": true,
+                    "componentUrl": "$config.app().dv_widget_url",
+                    "position": 51,
+                    "hidden": false,
+                    "children": {},
+                    "scope": "PetronashHmiWidget",
+                    "module": "./PetronashHmiWidget",
+                    "app_key": "$config.app().APP_KEY"
+                }
+            }
+        },
+        "build_widget_command": "npm --prefix widget run build",
+        "widget": "widget/assets/PetronashHmiWidget.js"
     }
 }

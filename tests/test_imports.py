@@ -103,5 +103,14 @@ def test_ui_export(tmp_path):
     data = json.loads(fp.read_text())
     ui_schema = data["petronash_hmi"]["ui_schema"]
     assert ui_schema["type"] == "uiApplication"
-    # The HMI's cloud UI is the Module Federation widget, not pydoover elements.
-    assert ui_schema["children"] == {}
+    # The HMI's cloud UI is exactly one Module Federation remote component.
+    assert set(ui_schema["children"]) == {"petronash_hmi_widget"}
+    widget = ui_schema["children"]["petronash_hmi_widget"]
+    assert widget["type"] == "uiRemoteComponent"
+    assert widget["componentUrl"] == "$config.app().dv_widget_url"
+    # Scope/module must stay in sync with widget/rsbuild.config.ts.
+    assert widget["scope"] == "PetronashHmiWidget"
+    assert widget["module"] == "./PetronashHmiWidget"
+    # The app defaults to the top of the device page, expanded.
+    assert ui_schema["position"] == "$config.app().dv_app_position:number:0"
+    assert ui_schema["defaultOpen"] == "$config.app().dv_app_default_open:boolean:true"
