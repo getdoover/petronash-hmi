@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import Any, Dict, Optional, Tuple
 
 from pydoover.docker import Application
 
@@ -10,11 +11,91 @@ from .dashboard import PetronashDashboard, DashboardInterface
 
 log = logging.getLogger(__name__)
 
-# Selector reads are analog; anything below this counts as "selected".
-SELECTOR_THRESHOLD = 5
+# Alarm setpoints move rarely (operator slider drags), so the ui_cmds aggregate
+# is refreshed on a slow cadence instead of every 0.5 s main_loop iteration.
+UI_CMDS_REFRESH_PERIOD_S = 5.0
+
+# Flow units whose volume component is US gallons; used to label the totaliser.
+_GALLON_FLOW_UNITS = {"GPD", "GPH", "GPM", "GPS"}
+
+
+def resolve_alarm_setpoint(
+    aggregate_data: Optional[Dict[str, Any]],
+    app_key: str,
+    alarm_type: Optional[str],
+) -> Tuple[Optional[float], Optional[float]]:
+    """Resolve a sensor app's alarm setpoint(s) from the ui_cmds aggregate data.
+
+    Pure function so it is unit-testable without a device agent.
+
+    ``aggregate_data`` is the ``data`` dict of the ``ui_cmds`` channel
+    aggregate, shaped ``{app_key: {element_name: value}}``. Setpoints are the
+    persisted slider values: ``alarm_range`` (2-list, order NOT guaranteed)
+    when the sensor's deployment_config ``alarm_type`` is "Allowed Range",
+    else ``alarm_point`` (bare number) for "Greater Than" / "Less Than".
+    A slider the operator has never moved has NO entry at all — that means
+    "no setpoint", never an error. Stale sibling keys may linger (e.g. an old
+    ``alarm_point`` next to the active ``alarm_range``); only the key selected
+    by ``alarm_type`` is authoritative.
+
+    Returns ``(low, high)`` where either side is None when unset/inapplicable.
+    """
+    cmds = ((aggregate_data or {}).get(app_key) or {}) if aggregate_data else {}
+
+    if alarm_type == "Allowed Range":
+        alarm_range = cmds.get("alarm_range")
+        if (
+            isinstance(alarm_range, (list, tuple))
+            and len(alarm_range) == 2
+            and all(isinstance(v, (int, float)) for v in alarm_range)
+        ):
+            low, high = sorted(float(v) for v in alarm_range)
+            return low, high
+        return None, None
+
+    if alarm_type in ("Greater Than", "Less Than"):
+        alarm_point = cmds.get("alarm_point")
+        if not isinstance(alarm_point, (int, float)):
+            return None, None
+        point = float(alarm_point)
+        if alarm_type == "Greater Than":
+            return None, point
+        return point, None
+
+    # Unknown or missing alarm_type (e.g. deployment_config unavailable):
+    # no authoritative key to read, so report no setpoint.
+    return None, None
+
+
+def alarm_type_from_app_config(app_config: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Extract a sensor app's alarm_type from its deployment_config block.
+
+    The 4-20mA sensor app nests alarm config under an ``"alarm"`` object; the
+    analog level sensor keeps ``alarm_type`` flat at the config root.
+    """
+    if not app_config:
+        return None
+    nested = app_config.get("alarm")
+    if isinstance(nested, dict) and nested.get("alarm_type"):
+        return nested["alarm_type"]
+    alarm_type = app_config.get("alarm_type")
+    return alarm_type if isinstance(alarm_type, str) else None
+
+
+def volume_units_from_flow_units(flow_units: Optional[str]) -> str:
+    """Derive the totaliser's volume unit label from the flow sensor's units."""
+    if isinstance(flow_units, str) and flow_units.strip().upper() in _GALLON_FLOW_UNITS:
+        return "gal"
+    return "units"
 
 
 class PetronashHmiApplication(Application):
+    """Read-only HMI: assembles DashboardData v2 from other apps' channels.
+
+    No socket handler, tag, or output of this app mutates anything — the pump
+    controller app owns all control.
+    """
+
     config_cls = PetronashHmiConfig
     tags_cls = PetronashHmiTags
     ui_cls = PetronashHmiUI
@@ -34,198 +115,125 @@ class PetronashHmiApplication(Application):
         self.dashboard_interface = DashboardInterface(self.dashboard)
         self.dashboard_interface.start_dashboard()
 
-        await self.setup_selector()
-        await self.setup_valve_control()
+        # Sensor display units + alarm types: fetched once from deployment_config.
+        self._measurement_units: Dict[str, Optional[str]] = {}
+        self._alarm_types: Dict[str, Optional[str]] = {}
+        await self._load_deployment_config()
+
+        # Alarm setpoints: cached ui_cmds aggregate, refreshed on a slow cadence.
+        self._ui_cmds_data: Dict[str, Any] = {}
+        self._ui_cmds_fetched_at: Optional[float] = None
+        await self._refresh_ui_cmds()
 
         log.info("Dashboard started on port 8091")
 
-    async def setup_selector(self):
-        aggregate = await self.device_agent.fetch_channel_aggregate("deployment_config")
-        self._deployment_config = aggregate.data["applications"]
+    async def _load_deployment_config(self):
+        """Read sensor units + alarm types from deployment_config (tolerate absence)."""
+        try:
+            aggregate = await self.device_agent.fetch_channel_aggregate(
+                "deployment_config"
+            )
+            applications = (aggregate.data or {}).get("applications") or {}
+        except Exception as e:
+            log.warning("Could not fetch deployment_config: %s", e)
+            applications = {}
 
-        pump_1 = self._deployment_config[self.config.pump_1_app.value]
-        pump_2 = self._deployment_config[self.config.pump_2_app.value]
+        flow_app = self.config.flow_sensor_app.value
+        pressure_app = self.config.pressure_sensor_app.value
 
-        self.pump_1_selector = pump_1["local_control"][0]["pump_selector_pin"]
-        self.pump_2_selector = pump_2["local_control"][0]["pump_selector_pin"]
+        for app_key in (flow_app, pressure_app):
+            app_config = applications.get(app_key) or {}
+            self._measurement_units[app_key] = app_config.get("measurement_units")
+            self._alarm_types[app_key] = alarm_type_from_app_config(app_config)
 
-        self.selector_state = None
-        await self.refresh_selector_state()
-        self.dashboard_interface.update_selector_state(self.selector_state)
-
-    async def setup_valve_control(self):
-        pump_1 = self._deployment_config[self.config.pump_1_app.value]
-
-        self.start_btn_pin = pump_1["local_control"][0]["start_button_pin"]
-        self.stop_btn_pin = pump_1["local_control"][0]["stop_button_pin"]
-        self.valve_control_pin = pump_1["calibration_output_pin"]
-
-        self.start_btn_lstn = self.platform_iface.start_di_pulse_listener(
-            self.start_btn_pin, self.start_btn_callback, edge="rising"
-        )
-        self.stop_btn_lstn = self.platform_iface.start_di_pulse_listener(
-            self.stop_btn_pin, self.stop_btn_callback, edge="rising"
-        )
-
-        self.valve_control_state = await self.platform_iface.fetch_do(
-            self.valve_control_pin
-        )
-
-    async def refresh_selector_state(self):
-        """Derive the 3-position selector state from the two pump selector AIs."""
-        p1_sel, p2_sel = await self.platform_iface.fetch_ai(
-            self.pump_1_selector, self.pump_2_selector
-        )
-
-        p1_low = p1_sel < SELECTOR_THRESHOLD
-        p2_low = p2_sel < SELECTOR_THRESHOLD
-
-        if p1_low and p2_low:
-            self.selector_state = 3
-        elif p1_low:
-            self.selector_state = 2
-        elif p2_low:
-            self.selector_state = 1
-        else:
-            self.selector_state = 0
-
-        return self.selector_state
-
-    def _pumps_calibrating(self) -> bool:
-        states = (
-            self.get_tag("AppState", self.config.pump_1_app.value),
-            self.get_tag("AppState", self.config.pump_2_app.value),
-        )
-        return "calibration" in states
-
-    async def _set_valve(self, value: int, action: str):
-        if self.selector_state != 3:
+    async def _refresh_ui_cmds(self):
+        """Refresh the cached ui_cmds aggregate if the cache is stale."""
+        now = time.monotonic()
+        if (
+            self._ui_cmds_fetched_at is not None
+            and now - self._ui_cmds_fetched_at < UI_CMDS_REFRESH_PERIOD_S
+        ):
             return
 
-        if self._pumps_calibrating():
-            await self.dashboard_interface.valve_control_popup()
-            return
-
-        log.info("%s valve", action)
-        await self.platform_iface.set_do(self.valve_control_pin, value)
-
-    async def start_btn_callback(self, di, val, dt_secs, counter, edge):
-        log.info("Start button pressed")
-        await self._set_valve(0, "Opening")
-
-    async def stop_btn_callback(self, di, val, dt_secs, counter, edge):
-        log.info("Stop button pressed")
-        await self._set_valve(1, "Closing")
+        self._ui_cmds_fetched_at = now
+        try:
+            aggregate = await self.device_agent.fetch_channel_aggregate("ui_cmds")
+            self._ui_cmds_data = aggregate.data or {}
+        except Exception as e:
+            # Keep serving the previous cache; setpoints go stale, not wrong.
+            log.warning("Could not fetch ui_cmds aggregate: %s", e)
 
     async def main_loop(self):
-        await self.update_dashboard_data()
+        await self._refresh_ui_cmds()
+        self.dashboard.update_data(**self.assemble_dashboard_data())
 
-    async def update_dashboard_data(self):
-        update_data = {}
+    def assemble_dashboard_data(self) -> Dict[str, Any]:
+        """Assemble the DashboardData v2 update dict from cached channel state.
 
-        await self.refresh_selector_state()
-        update_data["selector"] = {"state": self.selector_state}
+        None always means "no data" — the UI renders a placeholder, never 0.
+        """
+        flow_app = self.config.flow_sensor_app.value
+        pressure_app = self.config.pressure_sensor_app.value
+        tank_app = self.config.tank_level_app.value
+        pump_app = self.config.pump_controller_app.value
 
-        update_data["pump"] = {
-            "target_rate": self.get_tag("TargetRate", self.config.pump_1_app.value),
-            "flow_rate": self.get_tag("FlowRate", self.config.pump_1_app.value),
-            "pump_state": self.get_tag("StateString", self.config.pump_1_app.value),
-        }
+        flow_value = self.get_tag("value", app_key=flow_app, default=None)
+        pressure_value = self.get_tag("value", app_key=pressure_app, default=None)
 
-        # "enabled" tells the dashboard to render the Pump 2 card.
-        update_data["pump2"] = {
-            "enabled": True,
-            "target_rate": self.get_tag("TargetRate", self.config.pump_2_app.value),
-            "flow_rate": self.get_tag("FlowRate", self.config.pump_2_app.value),
-            "pump_state": self.get_tag("StateString", self.config.pump_2_app.value),
-        }
-
-        valve_state = await self.platform_iface.fetch_do(self.valve_control_pin)
-        if valve_state is not None:
-            self.valve_control_state = valve_state
-        update_data["valve"] = {"state": self.valve_control_state}
-
-        pump_states = (
-            self.get_tag("AppState", self.config.pump_1_app.value),
-            self.get_tag("AppState", self.config.pump_2_app.value),
+        tank_percent = self.get_tag(
+            "level_filled_percentage", app_key=tank_app, default=None
         )
-        update_data["faults"] = {
-            "ll_tank_level": "tank_level_low_low_level" in pump_states,
-            "hh_pressure": "pressure_high_high_level" in pump_states,
-        }
+        # level_reading is published in metres; the dashboard works in mm.
+        level_m = self.get_tag("level_reading", app_key=tank_app, default=None)
+        level_mm = level_m * 1000 if level_m is not None else None
 
-        solar_data = self.aggregate_solar_data()
-        if solar_data:
-            update_data["solar"] = solar_data
+        flow_low, flow_high = resolve_alarm_setpoint(
+            self._ui_cmds_data, flow_app, self._alarm_types.get(flow_app)
+        )
+        _, pressure_high = resolve_alarm_setpoint(
+            self._ui_cmds_data, pressure_app, self._alarm_types.get(pressure_app)
+        )
 
-        tank_data = {}
-        if self.config.tank_level_app:
-            # level_reading is published in metres; the dashboard works in mm.
-            level = self.get_tag("level_reading", self.config.tank_level_app.value)
-            percent = self.get_tag(
-                "level_filled_percentage", self.config.tank_level_app.value
-            )
-            if level is not None:
-                tank_data["tank_level_mm"] = level * 1000
-            if percent is not None:
-                tank_data["tank_level_percent"] = percent
-        if tank_data:
-            update_data["tank"] = tank_data
-
+        flow_units = self._measurement_units.get(flow_app)
         length_unit = "inch" if "Inch" in str(self.config.display_units.value) else "mm"
-        update_data["units"] = {"length": length_unit}
 
-        skid_data = {}
-        if self.config.flow_sensor_app:
-            skid_flow = self.get_tag("value", self.config.flow_sensor_app.value)
-            if skid_flow is not None:
-                skid_data["skid_flow"] = skid_flow
-        if self.config.pressure_sensor_app:
-            skid_pressure = self.get_tag("value", self.config.pressure_sensor_app.value)
-            if skid_pressure is not None:
-                skid_data["skid_pressure"] = skid_pressure
-        if skid_data:
-            update_data["skid"] = skid_data
-
-        self.dashboard.update_data(**update_data)
-        await self.publish_tags(update_data)
-
-    def aggregate_solar_data(self) -> dict:
-        """Average battery voltage/percentage/panel power and sum remaining amp-hours."""
-        if not self.config.solar_controllers:
-            return {}
-
-        readings = {
-            "b_voltage": [],
-            "b_percent": [],
-            "panel_power": [],
-            "remaining_ah": [],
+        return {
+            "pumps": {
+                "pump_1": {
+                    "on": self.get_tag("pump_1_on", app_key=pump_app, default=None)
+                },
+                "pump_2": {
+                    "on": self.get_tag("pump_2_on", app_key=pump_app, default=None)
+                },
+            },
+            "pressure": {
+                "value": pressure_value,
+                "units": self._measurement_units.get(pressure_app),
+                "high_alarm": pressure_high,
+            },
+            "flow": {
+                "value": flow_value,
+                "units": flow_units,
+                "high_alarm": flow_high,
+                "low_alarm": flow_low,
+            },
+            "volume": {
+                "total": self.get_tag("total_volume", app_key=pump_app, default=None),
+                "units": volume_units_from_flow_units(flow_units),
+            },
+            "tank": {
+                "percent": tank_percent,
+                "level_mm": level_mm,
+            },
+            "units": {"length": length_unit},
+            "alerts": {
+                "unexpected_flow": bool(
+                    self.get_tag(
+                        "unexpected_flow_alert", app_key=pump_app, default=False
+                    )
+                ),
+                "low_flow": bool(
+                    self.get_tag("low_flow_alert", app_key=pump_app, default=False)
+                ),
+            },
         }
-        for controller in self.config.solar_controllers.elements:
-            for tag_name in readings:
-                value = self.get_tag(tag_name, controller.value)
-                if value is not None:
-                    readings[tag_name].append(value)
-
-        def mean(values):
-            return sum(values) / len(values) if values else None
-
-        def total(values):
-            return sum(values) if values else None
-
-        solar_data = {
-            "battery_voltage": mean(readings["b_voltage"]),
-            "battery_percentage": mean(readings["b_percent"]),
-            "panel_power": mean(readings["panel_power"]),
-            "battery_ah": total(readings["remaining_ah"]),
-        }
-        return {k: v for k, v in solar_data.items() if v is not None}
-
-    async def publish_tags(self, update_data: dict):
-        """Mirror the state this app derives onto its own tags, for the cloud UI."""
-        await self.tags.selector_state.set(self.selector_state)
-        await self.tags.valve_open.set(not self.valve_control_state)
-
-        faults = update_data["faults"]
-        await self.tags.hh_pressure_fault.set(faults["hh_pressure"])
-        await self.tags.ll_tank_level_fault.set(faults["ll_tank_level"])

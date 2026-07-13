@@ -2,36 +2,15 @@ from pathlib import Path
 
 from pydoover import ui
 
-from .app_tags import PetronashHmiTags
-
-_SELECTOR_LABELS = ["None", "Pump 1", "Pump 2", "Valve"]
-
 
 class PetronashHmiUI(ui.UI):
-    selector_state = ui.NumericVariable(
-        "Selector",
-        value=PetronashHmiTags.selector_state,
-        name="selector_state",
-        precision=0,
-        ranges=[
-            ui.Range(label, i, i + 1, ui.Colour.blue)
-            for i, label in enumerate(_SELECTOR_LABELS)
-        ],
-    )
-    valve_open = ui.BooleanVariable(
-        "Valve Open", value=PetronashHmiTags.valve_open, name="valve_open"
-    )
+    """Minimal cloud UI.
 
-    hh_pressure_fault = ui.BooleanVariable(
-        "High Pressure Alarm",
-        value=PetronashHmiTags.hh_pressure_fault,
-        name="hh_pressure_fault",
-    )
-    ll_tank_level_fault = ui.BooleanVariable(
-        "Low Tank Level Alarm",
-        value=PetronashHmiTags.ll_tank_level_fault,
-        name="ll_tank_level_fault",
-    )
+    The HMI's cloud presence is a Module Federation widget declared via the
+    `widget:` field in doover_config.json (owned by the deployment integrator),
+    not pydoover UI elements. This class stays empty so the exported ui_schema
+    remains a valid, bare uiApplication node.
+    """
 
 
 def export():

@@ -10,6 +10,14 @@ from pydoover.config import Schema
 from pydoover.tags import Tags
 from pydoover.ui import UI
 
+CONFIG_FIELDS = (
+    "flow_sensor_app",
+    "pressure_sensor_app",
+    "tank_level_app",
+    "pump_controller_app",
+    "display_units",
+)
+
 
 def test_import_app():
     from petronash_hmi.application import PetronashHmiApplication
@@ -28,21 +36,21 @@ def test_config_schema():
     assert isinstance(schema, dict)
     assert schema["type"] == "object"
 
-    # The app has nothing to display without these, so they stay required.
-    for name in (
-        "pump_1_app",
-        "pump_2_app",
-        "solar_controllers",
-        "flow_sensor_app",
-        "pressure_sensor_app",
-        "tank_level_app",
-    ):
-        assert name in schema["properties"]
-        assert name in schema["required"]
+    # Exactly the v2 config surface — no genealogical debris.
+    assert set(schema["properties"]) == set(CONFIG_FIELDS)
 
-    # display_units has a default, so it must not be required.
-    assert "display_units" in schema["properties"]
-    assert "display_units" not in schema["required"]
+    # Every field carries a default, so nothing is required.
+    for name in CONFIG_FIELDS:
+        assert name not in schema.get("required", [])
+
+    # Defaults match the standard solution deployment.
+    assert schema["properties"]["flow_sensor_app"]["default"] == "4_20ma_sensor_1"
+    assert schema["properties"]["pressure_sensor_app"]["default"] == "4_20ma_sensor_2"
+    assert schema["properties"]["tank_level_app"]["default"] == "analog_level_sensor_1"
+    assert (
+        schema["properties"]["pump_controller_app"]["default"]
+        == "petronash_pump_controller_1"
+    )
 
 
 def test_tags():
@@ -64,6 +72,16 @@ def test_dashboard():
     assert isinstance(DashboardData().to_dict(), dict)
 
 
+def test_dashboard_is_read_only():
+    """The HMI is strictly read-only — no socket handler may mutate anything."""
+    from petronash_hmi.dashboard import PetronashDashboard
+
+    dashboard = PetronashDashboard(host="127.0.0.1", port=0)
+    handlers = dashboard.socketio.server.handlers.get("/", {})
+    assert "set_pump_state" not in handlers
+    assert set(handlers) <= {"connect", "disconnect", "request_data"}
+
+
 def test_config_export(tmp_path):
     from petronash_hmi.app_config import PetronashHmiConfig
 
@@ -72,7 +90,8 @@ def test_config_export(tmp_path):
 
     data = json.loads(fp.read_text())
     assert "config_schema" in data["petronash_hmi"]
-    assert "properties" in data["petronash_hmi"]["config_schema"]
+    properties = data["petronash_hmi"]["config_schema"]["properties"]
+    assert set(properties) == set(CONFIG_FIELDS)
 
 
 def test_ui_export(tmp_path):
@@ -82,5 +101,7 @@ def test_ui_export(tmp_path):
     PetronashHmiUI(None, None, None).export(fp, "petronash_hmi")
 
     data = json.loads(fp.read_text())
-    assert data["petronash_hmi"]["ui_schema"]["type"] == "uiApplication"
-    assert "selector_state" in data["petronash_hmi"]["ui_schema"]["children"]
+    ui_schema = data["petronash_hmi"]["ui_schema"]
+    assert ui_schema["type"] == "uiApplication"
+    # The HMI's cloud UI is the Module Federation widget, not pydoover elements.
+    assert ui_schema["children"] == {}

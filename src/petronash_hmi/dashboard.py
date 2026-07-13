@@ -3,7 +3,7 @@ import os
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
@@ -26,220 +26,177 @@ def dev_mode_from_env() -> bool:
     }
 
 
+def _opt_float(value: Any) -> Optional[float]:
+    """Coerce to float, passing None through (None means "no data")."""
+    return None if value is None else float(value)
+
+
+def _opt_bool(value: Any) -> Optional[bool]:
+    """Coerce to bool, passing None through (None means "no data")."""
+    return None if value is None else bool(value)
+
+
+def _opt_str(value: Any) -> Optional[str]:
+    """Coerce to str, passing None through (None means "no data")."""
+    return None if value is None else str(value)
+
+
 class DashboardData:
-    """Container for dashboard data with validation and default values."""
+    """Container for the DashboardData v2 payload sent on `data_update`.
+
+    Every reading defaults to None, meaning "no data" — the UI must render a
+    placeholder (e.g. "—") for None, never 0. Updates carry None explicitly to
+    clear a reading (e.g. a sensor went offline); absent keys leave the current
+    value untouched.
+    """
 
     def __init__(self):
-        # Pump Control Data
-        self.target_rate: float = 0.0
-        self.flow_rate: float = 0.0
-        self.pump_state: str = "standby"
+        # Pump states (from the pump controller app's tags; None = unknown)
+        self.pump_1_on: Optional[bool] = None
+        self.pump_2_on: Optional[bool] = None
 
-        # Pump 2 Control Data
-        self.pump2_enabled: bool = (
-            False  # only true when a second pump app is configured
-        )
-        self.pump2_target_rate: float = 0.0
-        self.pump2_flow_rate: float = 0.0
-        self.pump2_pump_state: str = "standby"
+        # Pressure (shared sensor)
+        self.pressure_value: Optional[float] = None
+        self.pressure_units: Optional[str] = None
+        self.pressure_high_alarm: Optional[float] = None
 
-        # Solar Control Data
-        self.battery_voltage: float = 0.0
-        self.battery_percentage: float = 0.0
-        self.panel_power: float = 0.0
-        self.battery_ah: float = 0.0
+        # Flow (shared sensor)
+        self.flow_value: Optional[float] = None
+        self.flow_units: Optional[str] = None
+        self.flow_high_alarm: Optional[float] = None
+        self.flow_low_alarm: Optional[float] = None
 
-        # Tank Control Data
-        self.tank_level_mm: float = 0.0
-        self.tank_level_percent: float = 0.0
+        # Volume totaliser (from the pump controller app)
+        self.volume_total: Optional[float] = None
+        self.volume_units: str = "units"
 
-        # Display Units ("mm" or "inch") for length readings; defaults to inches
+        # Tank level
+        self.tank_percent: Optional[float] = None
+        self.tank_level_mm: Optional[float] = None
+
+        # Display units ("mm" or "inch") for length readings; defaults to inches
         self.length_unit: str = "inch"
 
-        # Skid Control Data
-        self.skid_flow: float = 0.0
-        self.skid_pressure: float = 0.0
-        self.skid_total_flow: float = (
-            0.0  # lifetime total flow (placeholder until wired)
-        )
+        # Alerts (from the pump controller app; plain booleans, not "no data")
+        self.unexpected_flow_alert: bool = False
+        self.low_flow_alert: bool = False
 
-        # System Data
+        # System data
         self.timestamp: datetime = datetime.now(timezone.utc)
         self.system_status: str = "running"
 
-        # Selector Data
-        self.selector: int = 0
-
-        # Valve Control Data
-        self.valve_control_state: bool = False
-
-        # Fault Data
-        self.faults = {
-            "hh_pressure": False,
-            "ll_tank_level": False,
-        }
-
-        # Alarm setpoints (display only for now; wire to config/pump apps later)
-        self.pressure_high_alarm: float = 1500.0  # psi
-        self.tank_level_low_alarm: float = (
-            101.6  # mm (= 4 inches; rendered in the active length unit)
-        )
-        self.flow_high_alarm: float = 40.0  # GPD
-        self.flow_low_alarm: float = 10.0  # GPD
-
-    @staticmethod
-    def _to_bool(value: Any, default: bool = False) -> bool:
-        """Convert a value to boolean with fallback."""
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, (int, float)):
-            return value != 0
-        if isinstance(value, str):
-            return value.strip().lower() in {"true", "1", "yes", "on"}
-        return default
-
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
+        """Convert to the DashboardData v2 dictionary for JSON serialization."""
         return {
-            "pump": {
-                "target_rate": self.target_rate,
-                "flow_rate": self.flow_rate,
-                "pump_state": self.pump_state,
+            "pumps": {
+                "pump_1": {"on": self.pump_1_on},
+                "pump_2": {"on": self.pump_2_on},
             },
-            "pump2": {
-                "enabled": self.pump2_enabled,
-                "target_rate": self.pump2_target_rate,
-                "flow_rate": self.pump2_flow_rate,
-                "pump_state": self.pump2_pump_state,
+            "pressure": {
+                "value": self.pressure_value,
+                "units": self.pressure_units,
+                "high_alarm": self.pressure_high_alarm,
             },
-            "selector": {
-                "state": self.selector,
+            "flow": {
+                "value": self.flow_value,
+                "units": self.flow_units,
+                "high_alarm": self.flow_high_alarm,
+                "low_alarm": self.flow_low_alarm,
             },
-            "valve": {
-                "state": self.valve_control_state,
-            },
-            "solar": {
-                "battery_voltage": self.battery_voltage,
-                "battery_percentage": self.battery_percentage,
-                "panel_power": self.panel_power,
-                "battery_ah": self.battery_ah,
+            "volume": {
+                "total": self.volume_total,
+                "units": self.volume_units,
             },
             "tank": {
-                "tank_level_mm": self.tank_level_mm,
-                "tank_level_percent": self.tank_level_percent,
+                "percent": self.tank_percent,
+                "level_mm": self.tank_level_mm,
             },
             "units": {
                 "length": self.length_unit,
             },
-            "skid": {
-                "skid_flow": self.skid_flow,
-                "skid_pressure": self.skid_pressure,
-                "total_flow": self.skid_total_flow,
+            "alerts": {
+                "unexpected_flow": self.unexpected_flow_alert,
+                "low_flow": self.low_flow_alert,
             },
             "system": {
                 "timestamp": self.timestamp.isoformat(),
                 "status": self.system_status,
             },
-            "faults": {
-                "hh_pressure": self.faults["hh_pressure"],
-                "ll_tank_level": self.faults["ll_tank_level"],
-            },
-            "alarms": {
-                "pressure_high": self.pressure_high_alarm,
-                "tank_level_low": self.tank_level_low_alarm,
-                "flow_high": self.flow_high_alarm,
-                "flow_low": self.flow_low_alarm,
-            },
         }
 
     def update_from_dict(self, data: Dict[str, Any]):
-        """Update from dictionary with validation."""
-        if "pump" in data:
-            pump = data["pump"]
-            self.target_rate = float(pump.get("target_rate", self.target_rate))
-            self.flow_rate = float(pump.get("flow_rate", self.flow_rate))
-            self.pump_state = str(pump.get("pump_state", self.pump_state))
+        """Update from a (partial) v2 dictionary.
 
-        if "pump2" in data:
-            pump2 = data["pump2"]
-            # Presence of pump2 in an update implies a second pump app is configured;
-            # honour an explicit "enabled" flag if the app sends one.
-            self.pump2_enabled = self._to_bool(pump2.get("enabled", True), default=True)
-            self.pump2_target_rate = float(
-                pump2.get("target_rate", self.pump2_target_rate)
-            )
-            self.pump2_flow_rate = float(pump2.get("flow_rate", self.pump2_flow_rate))
-            self.pump2_pump_state = str(pump2.get("pump_state", self.pump2_pump_state))
+        Keys present with a None value clear the reading to "no data"; keys
+        absent from the update keep their current value.
+        """
+        if "pumps" in data and isinstance(data["pumps"], dict):
+            pumps = data["pumps"]
+            if isinstance(pumps.get("pump_1"), dict) and "on" in pumps["pump_1"]:
+                self.pump_1_on = _opt_bool(pumps["pump_1"]["on"])
+            if isinstance(pumps.get("pump_2"), dict) and "on" in pumps["pump_2"]:
+                self.pump_2_on = _opt_bool(pumps["pump_2"]["on"])
 
-        if "solar" in data:
-            solar = data["solar"]
-            self.battery_voltage = float(
-                solar.get("battery_voltage", self.battery_voltage)
-            )
-            self.battery_percentage = float(
-                solar.get("battery_percentage", self.battery_percentage)
-            )
-            self.panel_power = float(solar.get("panel_power", self.panel_power))
-            self.battery_ah = float(solar.get("battery_ah", self.battery_ah))
+        if "pressure" in data and isinstance(data["pressure"], dict):
+            pressure = data["pressure"]
+            if "value" in pressure:
+                self.pressure_value = _opt_float(pressure["value"])
+            if "units" in pressure:
+                self.pressure_units = _opt_str(pressure["units"])
+            if "high_alarm" in pressure:
+                self.pressure_high_alarm = _opt_float(pressure["high_alarm"])
 
-        if "tank" in data:
+        if "flow" in data and isinstance(data["flow"], dict):
+            flow = data["flow"]
+            if "value" in flow:
+                self.flow_value = _opt_float(flow["value"])
+            if "units" in flow:
+                self.flow_units = _opt_str(flow["units"])
+            if "high_alarm" in flow:
+                self.flow_high_alarm = _opt_float(flow["high_alarm"])
+            if "low_alarm" in flow:
+                self.flow_low_alarm = _opt_float(flow["low_alarm"])
+
+        if "volume" in data and isinstance(data["volume"], dict):
+            volume = data["volume"]
+            if "total" in volume:
+                self.volume_total = _opt_float(volume["total"])
+            if "units" in volume and volume["units"] is not None:
+                self.volume_units = str(volume["units"])
+
+        if "tank" in data and isinstance(data["tank"], dict):
             tank = data["tank"]
-            self.tank_level_mm = float(tank.get("tank_level_mm", self.tank_level_mm))
-            self.tank_level_percent = float(
-                tank.get("tank_level_percent", self.tank_level_percent)
-            )
+            if "percent" in tank:
+                self.tank_percent = _opt_float(tank["percent"])
+            if "level_mm" in tank:
+                self.tank_level_mm = _opt_float(tank["level_mm"])
 
-        if "units" in data:
+        if "units" in data and isinstance(data["units"], dict):
             units = data["units"]
-            self.length_unit = str(units.get("length", self.length_unit))
+            if units.get("length") is not None:
+                self.length_unit = str(units["length"])
 
-        if "skid" in data:
-            skid = data["skid"]
-            self.skid_flow = float(skid.get("skid_flow", self.skid_flow))
-            self.skid_pressure = float(skid.get("skid_pressure", self.skid_pressure))
-            self.skid_total_flow = float(skid.get("total_flow", self.skid_total_flow))
+        if "alerts" in data and isinstance(data["alerts"], dict):
+            alerts = data["alerts"]
+            if "unexpected_flow" in alerts:
+                self.unexpected_flow_alert = bool(alerts["unexpected_flow"])
+            if "low_flow" in alerts:
+                self.low_flow_alert = bool(alerts["low_flow"])
 
-        if "system" in data:
+        if "system" in data and isinstance(data["system"], dict):
             system = data["system"]
-            self.system_status = str(system.get("status", self.system_status))
-
-        if "selector" in data:
-            selector = data["selector"]
-            self.selector = int(selector.get("state", self.selector))
-
-        if "valve" in data:
-            valve = data["valve"]
-            self.valve_control_state = bool(
-                valve.get("state", self.valve_control_state)
-            )
-
-        if "faults" in data and isinstance(data["faults"], dict):
-            faults = data["faults"]
-            if "hh_pressure" in faults:
-                self.faults["hh_pressure"] = self._to_bool(
-                    faults["hh_pressure"], self.faults["hh_pressure"]
-                )
-            if "ll_tank_level" in faults:
-                self.faults["ll_tank_level"] = self._to_bool(
-                    faults["ll_tank_level"], self.faults["ll_tank_level"]
-                )
-
-        if "alarms" in data and isinstance(data["alarms"], dict):
-            alarms = data["alarms"]
-            self.pressure_high_alarm = float(
-                alarms.get("pressure_high", self.pressure_high_alarm)
-            )
-            self.tank_level_low_alarm = float(
-                alarms.get("tank_level_low", self.tank_level_low_alarm)
-            )
-            self.flow_high_alarm = float(alarms.get("flow_high", self.flow_high_alarm))
-            self.flow_low_alarm = float(alarms.get("flow_low", self.flow_low_alarm))
+            if system.get("status") is not None:
+                self.system_status = str(system["status"])
 
         self.timestamp = datetime.now(timezone.utc)
 
 
 class PetronashDashboard:
-    """Flask dashboard with WebSocket support for the Petronash HMI."""
+    """Flask dashboard with WebSocket support for the Petronash HMI.
+
+    Strictly read-only: no socket event mutates any state beyond connection
+    bookkeeping. All control lives in the pump controller app's cloud UI.
+    """
 
     def __init__(
         self,
@@ -298,7 +255,7 @@ class PetronashDashboard:
             }
 
     def _setup_socket_events(self):
-        """Setup WebSocket event handlers."""
+        """Setup WebSocket event handlers (read-only — no mutating handlers)."""
 
         @self.socketio.on("connect")
         def handle_connect():
@@ -322,21 +279,6 @@ class PetronashDashboard:
             """Handle explicit data request from client."""
             emit("data_update", self.data.to_dict())
 
-        @self.socketio.on("set_pump_state")
-        def handle_pump_state_change(data):
-            """Handle pump state change from client."""
-            try:
-                if "state" in data:
-                    self.data.pump_state = str(data["state"])
-                    self.data.timestamp = datetime.now(timezone.utc)
-                    log.info(f"Pump state changed to: {self.data.pump_state}")
-
-                    # Broadcast update to all clients
-                    self.broadcast_update()
-            except Exception as e:
-                log.error(f"Error handling pump state change: {e}")
-                emit("error", {"message": str(e)})
-
     def broadcast_update(self):
         """Broadcast data update to all connected clients."""
         if self.connected_clients:
@@ -352,12 +294,6 @@ class PetronashDashboard:
                 log.debug(f"Dashboard data updated: {kwargs}")
         except Exception as e:
             log.error(f"Error updating dashboard data: {e}")
-
-    def show_valve_control_popup(self):
-        """Emit valve control popup event to all connected clients."""
-        if self.connected_clients:
-            self.socketio.emit("valve_control_popup", {})
-            log.info("Valve control popup event emitted")
 
     def start(self):
         """Start the dashboard server."""
@@ -442,11 +378,3 @@ class DashboardInterface:
     def update_system_status(self, status: str):
         """Update system status."""
         self.dashboard.update_data(system={"status": status})
-
-    def update_selector_state(self, state: str):
-        """Update selector state."""
-        self.dashboard.update_data(selector={"state": state})
-
-    async def valve_control_popup(self):
-        """Trigger valve control popup on dashboard."""
-        self.dashboard.show_valve_control_popup()

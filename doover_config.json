@@ -5,7 +5,7 @@
         "type": "DEV",
         "visibility": "PRI",
         "allow_many": true,
-        "description": "Petronash local control HMI for SIA pump skids (Aramco) - two-pump control, alarm setpoints and popover",
+        "description": "Petronash local HMI for SIA pump skids (Aramco) - read-only panel showing pump states, flow/pressure/tank readings, alarm setpoints and volume totaliser",
         "long_description": "README.md",
         "depends_on": [],
         "owner_org_key": "36a22e32-ab81-4a39-b400-869d532a052d",
@@ -18,73 +18,61 @@
             "title": "$default",
             "type": "object",
             "properties": {
-                "pump_1_app": {
-                    "title": "Pump 1 App",
-                    "x-name": "pump_1_app",
-                    "x-hidden": false,
-                    "format": "doover-resource-application",
-                    "type": "string",
-                    "x-required": true,
-                    "description": "The pump controller application for pump 1",
-                    "x-position": 0
-                },
-                "pump_2_app": {
-                    "title": "Pump 2 App",
-                    "x-name": "pump_2_app",
-                    "x-hidden": false,
-                    "format": "doover-resource-application",
-                    "type": "string",
-                    "x-required": true,
-                    "description": "The pump controller application for pump 2",
-                    "x-position": 1
-                },
-                "solar_controllers": {
-                    "title": "Solar Controllers",
-                    "x-name": "solar_controllers",
-                    "x-hidden": false,
-                    "type": "array",
-                    "x-required": true,
-                    "description": "List of solar controller applications",
-                    "x-position": 2,
-                    "items": {
-                        "title": "Solar Controller",
-                        "x-name": "solar_controller",
-                        "x-hidden": false,
-                        "format": "doover-resource-application",
-                        "type": "string",
-                        "x-required": true,
-                        "description": "A solar controller application"
-                    }
-                },
                 "flow_sensor_app": {
                     "title": "Flow Sensor App",
                     "x-name": "flow_sensor_app",
                     "x-hidden": false,
                     "format": "doover-resource-application",
-                    "type": "string",
-                    "x-required": true,
-                    "description": "A flow sensor application",
-                    "x-position": 3
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-required": false,
+                    "description": "The 4-20mA sensor application measuring flow rate",
+                    "default": "4_20ma_sensor_1",
+                    "x-position": 0
                 },
                 "pressure_sensor_app": {
                     "title": "Pressure Sensor App",
                     "x-name": "pressure_sensor_app",
                     "x-hidden": false,
                     "format": "doover-resource-application",
-                    "type": "string",
-                    "x-required": true,
-                    "description": "A pressure sensor application",
-                    "x-position": 4
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-required": false,
+                    "description": "The 4-20mA sensor application measuring pressure",
+                    "default": "4_20ma_sensor_2",
+                    "x-position": 1
                 },
                 "tank_level_app": {
                     "title": "Tank Level App",
                     "x-name": "tank_level_app",
                     "x-hidden": false,
                     "format": "doover-resource-application",
-                    "type": "string",
-                    "x-required": true,
-                    "description": "The tank level application",
-                    "x-position": 5
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-required": false,
+                    "description": "The analog level sensor application measuring tank level",
+                    "default": "analog_level_sensor_1",
+                    "x-position": 2
+                },
+                "pump_controller_app": {
+                    "title": "Pump Controller App",
+                    "x-name": "pump_controller_app",
+                    "x-hidden": false,
+                    "format": "doover-resource-application",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-required": false,
+                    "description": "The Petronash pump controller application (pump states, volume totaliser and alerts)",
+                    "default": "petronash_pump_controller_1",
+                    "x-position": 3
                 },
                 "display_units": {
                     "enum": [
@@ -101,18 +89,11 @@
                     "x-required": false,
                     "description": "Units used for length readings (e.g. tank level) on the screen",
                     "default": "Inch (\")",
-                    "x-position": 6
+                    "x-position": 4
                 }
             },
             "additionalElements": true,
-            "required": [
-                "pump_1_app",
-                "pump_2_app",
-                "solar_controllers",
-                "flow_sensor_app",
-                "pressure_sensor_app",
-                "tank_level_app"
-            ]
+            "required": []
         },
         "key": "",
         "code_repo_key": null,
@@ -127,83 +108,7 @@
             "defaultOpen": "$config.app().dv_app_default_open:boolean",
             "type": "uiApplication",
             "name": "$config.app().APP_KEY",
-            "children": {
-                "selector_state": {
-                    "name": "selector_state",
-                    "type": "uiVariable",
-                    "displayString": "Selector",
-                    "showActivity": true,
-                    "position": 51,
-                    "hidden": false,
-                    "varType": "float",
-                    "currentValue": "$tag.app().selector_state:number:null",
-                    "decPrecision": 0,
-                    "ranges": [
-                        {
-                            "min": 0,
-                            "max": 1,
-                            "colour": "blue",
-                            "show_on_graph": true,
-                            "label": "None"
-                        },
-                        {
-                            "min": 1,
-                            "max": 2,
-                            "colour": "blue",
-                            "show_on_graph": true,
-                            "label": "Pump 1"
-                        },
-                        {
-                            "min": 2,
-                            "max": 3,
-                            "colour": "blue",
-                            "show_on_graph": true,
-                            "label": "Pump 2"
-                        },
-                        {
-                            "min": 3,
-                            "max": 4,
-                            "colour": "blue",
-                            "show_on_graph": true,
-                            "label": "Valve"
-                        }
-                    ],
-                    "live": true
-                },
-                "valve_open": {
-                    "name": "valve_open",
-                    "type": "uiVariable",
-                    "displayString": "Valve Open",
-                    "showActivity": true,
-                    "position": 52,
-                    "hidden": false,
-                    "varType": "bool",
-                    "currentValue": "$tag.app().valve_open:boolean:false",
-                    "live": true
-                },
-                "hh_pressure_fault": {
-                    "name": "hh_pressure_fault",
-                    "type": "uiVariable",
-                    "displayString": "High Pressure Alarm",
-                    "showActivity": true,
-                    "position": 53,
-                    "hidden": false,
-                    "varType": "bool",
-                    "currentValue": "$tag.app().hh_pressure_fault:boolean:false",
-                    "live": true
-                },
-                "ll_tank_level_fault": {
-                    "name": "ll_tank_level_fault",
-                    "type": "uiVariable",
-                    "displayString": "Low Tank Level Alarm",
-                    "showActivity": true,
-                    "position": 54,
-                    "hidden": false,
-                    "varType": "bool",
-                    "currentValue": "$tag.app().ll_tank_level_fault:boolean:false",
-                    "live": true
-                }
-            }
+            "children": {}
         }
     }
 }

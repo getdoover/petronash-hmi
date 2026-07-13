@@ -1,35 +1,52 @@
 # Petronash HMI
 
 A Doover device application that serves a local touchscreen HMI for Petronash SIA pump skids
-(Aramco). It runs on the Doovit, reads state from the other apps deployed alongside it, drives
-the skid's valve output, and serves a real-time web dashboard on port **8091** for the panel
-screen mounted on the skid.
+(Aramco). It runs on the Doovit, reads state from the other apps deployed alongside it, and
+serves a real-time web dashboard on port **8091** for the panel screen mounted on the skid.
 
-This app has no cloud dashboard of its own beyond a small read-only summary — the operator
-interface is the local web page, not the Doover web app.
+The HMI is **strictly read-only**: it displays state but controls nothing. All pump control
+lives in the Petronash Pump Controller app's cloud UI. This app publishes no domain tags and
+no socket event mutates anything.
 
 ## What it does
 
-- **Reads** pump state, flow and target rate from two pump controller apps; tank level from the
-  tank level app; flow and pressure from their sensor apps; and battery/solar figures aggregated
-  across any number of solar controller apps.
-- **Drives** the valve digital output, gated on a 3-position selector switch read from two analog
-  inputs. Start/stop button presses are picked up via digital-input pulse listeners. Pin numbers
-  are read out of the pump 1 app's `deployment_config`, not configured separately.
-- **Serves** a Flask + Socket.IO dashboard (`src/petronash_hmi/dashboard.py`) that pushes updates
-  to the panel over a WebSocket, including an alarm-exceedance popover.
-- **Publishes** the state it derives itself (selector position, valve state, the two fault flags)
-  as tags, so they are visible from the cloud.
+- **Reads** pump states, the volume totaliser and alert flags from the pump controller app's
+  tags; flow and pressure from the 4-20mA sensor apps; and tank level from the analog level
+  sensor app.
+- **Reads alarm setpoints** (the sensor apps' slider values) from the `ui_cmds` channel
+  aggregate on a slow cadence, and sensor display units from `deployment_config`.
+- **Serves** a Flask + Socket.IO dashboard (`src/petronash_hmi/dashboard.py`) that pushes
+  `data_update` events to the panel over a WebSocket.
+
+## DashboardData v2
+
+The socket.io `data_update` payload (and `/api/data` response) is the DashboardData v2 dict:
+
+```json
+{
+  "pumps": { "pump_1": {"on": true}, "pump_2": {"on": false} },
+  "pressure": { "value": 3.2, "units": "PSI", "high_alarm": 1500.0 },
+  "flow": { "value": 26.4, "units": "GPD", "high_alarm": 63.3, "low_alarm": 34.2 },
+  "volume": { "total": 58213.0, "units": "gal" },
+  "tank": { "percent": 48.8, "level_mm": 19030.0 },
+  "units": { "length": "inch" },
+  "alerts": { "unexpected_flow": false, "low_flow": false },
+  "system": { "timestamp": "<iso>", "status": "running" }
+}
+```
+
+`null` means "no data" — the UI renders a placeholder (e.g. "—"), never 0. A setpoint slider
+the operator has never moved has no `ui_cmds` entry and resolves to `null`.
 
 ## Structure
 
 ```
 src/petronash_hmi/
   __init__.py        # Entry point — run_app(PetronashHmiApplication())
-  application.py     # Main app class (setup, main_loop, I/O, tag reads)
+  application.py     # Main app class (setup, main_loop, channel/tag reads)
   app_config.py      # Config schema — class-level declarations
-  app_tags.py        # Tags this app derives
-  app_ui.py          # Read-only cloud UI bound to those tags
+  app_tags.py        # Empty — the HMI publishes no domain tags
+  app_ui.py          # Empty — the cloud UI is a Module Federation widget
   dashboard.py       # Flask + Socket.IO server for the local panel
   templates/         # dashboard.html
   static/            # css, js, logos
@@ -53,12 +70,13 @@ committed schemas match the source.
 
 ### Viewing the dashboard without a Doovit
 
-`run_local.py` boots just the Flask HMI with representative data, so the panel UI can be viewed
-and the alarm popover exercised without the pydoover app or any device:
+`run_local.py` boots just the Flask HMI with representative DashboardData v2 seed data, so the
+panel UI can be viewed and the alarm popover exercised without the pydoover app or any device:
 
 ```bash
 uv run python run_local.py                    # dev toolbar on, http://127.0.0.1:8091
 PETRONASH_DEV_MODE=0 uv run python run_local.py  # production-like, no toolbar
+PETRONASH_DASHBOARD_PORT=8092 uv run python run_local.py  # alternate port
 ```
 
 The dev toolbar (for manually triggering alarms) is controlled by the `PETRONASH_DEV_MODE`
@@ -67,12 +85,13 @@ mode without a code change.
 
 ## Configuration
 
-| Field | Required | Description |
+Every field has a default matching the standard solution deployment, so a fresh install works
+without configuration.
+
+| Field | Default | Description |
 | --- | --- | --- |
-| `pump_1_app` | yes | Pump controller application for pump 1. Also the source of all pin assignments. |
-| `pump_2_app` | yes | Pump controller application for pump 2. |
-| `solar_controllers` | yes | List of solar controller applications; readings are aggregated. |
-| `flow_sensor_app` | yes | Skid flow sensor application. |
-| `pressure_sensor_app` | yes | Skid pressure sensor application. |
-| `tank_level_app` | yes | Tank level application. |
-| `display_units` | no | Length units on screen — inches (default) or millimetres. |
+| `flow_sensor_app` | `4_20ma_sensor_1` | 4-20mA sensor application measuring flow rate. |
+| `pressure_sensor_app` | `4_20ma_sensor_2` | 4-20mA sensor application measuring pressure. |
+| `tank_level_app` | `analog_level_sensor_1` | Analog level sensor application. |
+| `pump_controller_app` | `petronash_pump_controller_1` | Petronash pump controller application. |
+| `display_units` | `Inch (")` | Length units on screen — inches or millimetres. |

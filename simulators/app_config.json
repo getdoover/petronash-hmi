@@ -1,12 +1,7 @@
 {
-  "pump_1_app": "sia_injection_controller-1",
-  "pump_2_app": "sia_injection_controller-2",
-  "solar_controllers": [
-    "morningstar_prostar_app-1",
-    "morningstar_prostar_app-2"
-  ],
-  "flow_sensor_app": "YKFPdyPNwi",
-  "pressure_sensor_app": "OVMKT",
-  "tank_level_app": "analog_level_sensor-1",
+  "flow_sensor_app": "4_20ma_sensor_1",
+  "pressure_sensor_app": "4_20ma_sensor_2",
+  "tank_level_app": "analog_level_sensor_1",
+  "pump_controller_app": "petronash_pump_controller_1",
   "display_units": "Inch (\")"
 }
