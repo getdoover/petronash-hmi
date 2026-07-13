@@ -100,8 +100,13 @@ export function resolveAlarmSetpoints(
   if (alarmType === "Less Than") {
     return { high: null, low: point };
   }
-  // "Greater Than" (and unknown types with a set point) => high alarm
-  return { high: point, low: null };
+  if (alarmType === "Greater Than") {
+    return { high: point, low: null };
+  }
+  // Unknown or missing alarm_type (e.g. deployment_config still loading):
+  // there is no authoritative key to read — a stale alarm_point must not
+  // render as a phantom high alarm. Mirrors the python resolver.
+  return { high: null, low: null };
 }
 
 /** Derive the volume unit label from the flow sensor's units (GPD -> gal). */

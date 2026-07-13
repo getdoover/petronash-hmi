@@ -71,11 +71,17 @@ def alarm_type_from_app_config(app_config: Optional[Dict[str, Any]]) -> Optional
     """Extract a sensor app's alarm_type from its deployment_config block.
 
     The 4-20mA sensor app nests alarm config under an ``"alarm"`` object; the
-    analog level sensor keeps ``alarm_type`` flat at the config root.
+    analog level sensor keeps ``alarm_type`` flat at the config root. An
+    explicitly disabled alarm (alarm_enabled: false) yields None so no
+    setpoint is rendered — matching both the sensor apps' behaviour and the
+    cloud widget's resolver.
     """
     if not app_config:
         return None
     nested = app_config.get("alarm")
+    block = nested if isinstance(nested, dict) else app_config
+    if block.get("alarm_enabled") is False:
+        return None
     if isinstance(nested, dict) and nested.get("alarm_type"):
         return nested["alarm_type"]
     alarm_type = app_config.get("alarm_type")

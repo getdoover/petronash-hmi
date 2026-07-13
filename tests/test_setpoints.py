@@ -102,3 +102,25 @@ def test_volume_units_from_flow_units():
     assert volume_units_from_flow_units("gph") == "gal"
     assert volume_units_from_flow_units("L/min") == "units"
     assert volume_units_from_flow_units(None) == "units"
+
+
+def test_alarm_type_suppressed_when_alarm_disabled():
+    """alarm_enabled: false yields no alarm_type — matching the cloud widget."""
+    from petronash_hmi.application import alarm_type_from_app_config
+
+    # 4-20mA shape: nested alarm block
+    nested = {"alarm": {"alarm_enabled": False, "alarm_type": "Allowed Range"}}
+    assert alarm_type_from_app_config(nested) is None
+
+    # level-sensor shape: flat keys
+    flat = {"alarm_enabled": False, "alarm_type": "Greater Than"}
+    assert alarm_type_from_app_config(flat) is None
+
+    # enabled (or unspecified) still resolves
+    assert (
+        alarm_type_from_app_config(
+            {"alarm": {"alarm_enabled": True, "alarm_type": "Allowed Range"}}
+        )
+        == "Allowed Range"
+    )
+    assert alarm_type_from_app_config({"alarm_type": "Less Than"}) == "Less Than"
