@@ -21,7 +21,11 @@ export interface DashboardDataV2 {
     low_alarm: number | null;
   };
   volume: { total: number | null; units: string };
-  tank: { percent: number | null; level_mm: number | null };
+  tank: {
+    percent: number | null;
+    level_mm: number | null;
+    capacity: { value: number | null; units: string | null };
+  };
   units: { length: "inch" | "mm" };
   alerts: { unexpected_flow: boolean; low_flow: boolean };
   system: { timestamp: string; status: string };
@@ -38,3 +42,13 @@ export function createHmi(
   rootEl: HTMLElement,
   opts?: Record<string, unknown>,
 ): HmiHandle;
+
+/**
+ * Estimate the time until the tank empties at the current flow, formatted as
+ * "Xd Yh Zm", or an em-dash placeholder when it cannot be computed (flow null
+ * or <= 0, percent null, capacity missing, or a non-finite result).
+ */
+export function formatTimeToEmpty(
+  tank: DashboardDataV2["tank"] | null | undefined,
+  flow: DashboardDataV2["flow"] | null | undefined,
+): string;

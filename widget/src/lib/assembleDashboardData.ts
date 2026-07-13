@@ -8,8 +8,9 @@
  *   - `ui_cmds`           — alarm setpoints (persisted slider values,
  *                           { <app_key>: { alarm_point | alarm_range } })
  *   - `deployment_config` — this HMI install's configured peer app keys +
- *                           display units, and each sensor app's
- *                           measurement_units / alarm_type
+ *                           display units, each sensor app's
+ *                           measurement_units / alarm_type, and the level
+ *                           sensor's tank capacity (max_volume / volume_units)
  *                           ({ applications: { <app_key>: {...} } })
  *
  * Mirrors the python side (src/petronash_hmi/application.py) so hmi-core.js
@@ -135,6 +136,7 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
 
   const flowConfig = asRecord(applications[flowApp]);
   const pressureConfig = asRecord(applications[pressureApp]);
+  const tankConfig = asRecord(applications[tankApp]);
 
   const flowUnits = asString(flowConfig.measurement_units) ?? "";
   const pressureUnits = asString(pressureConfig.measurement_units) ?? "";
@@ -175,6 +177,13 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
     tank: {
       percent: asNumber(tankTags.level_filled_percentage),
       level_mm: levelMetres === null ? null : levelMetres * 1000,
+      // Dumb pass-through: capacity from the level sensor's own
+      // deployment_config (max_volume + volume_units). All time-to-empty math
+      // lives in hmi-core.js so the two shells cannot diverge.
+      capacity: {
+        value: asNumber(tankConfig.max_volume),
+        units: asString(tankConfig.volume_units),
+      },
     },
     units: { length: lengthUnit },
     alerts: {

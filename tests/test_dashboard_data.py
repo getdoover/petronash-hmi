@@ -8,7 +8,11 @@ FULL_UPDATE = {
     "pressure": {"value": 3.2, "units": "PSI", "high_alarm": None},
     "flow": {"value": 42.7, "units": "GPD", "high_alarm": 63.3, "low_alarm": 34.2},
     "volume": {"total": 58213.0, "units": "gal"},
-    "tank": {"percent": 48.8, "level_mm": 19030.0},
+    "tank": {
+        "percent": 48.8,
+        "level_mm": 19030.0,
+        "capacity": {"value": 100000.0, "units": "L"},
+    },
     "units": {"length": "inch"},
     "alerts": {"unexpected_flow": False, "low_flow": True},
     "system": {"status": "running"},
@@ -35,7 +39,8 @@ def test_to_dict_v2_shape():
     assert set(d["pressure"]) == {"value", "units", "high_alarm"}
     assert set(d["flow"]) == {"value", "units", "high_alarm", "low_alarm"}
     assert set(d["volume"]) == {"total", "units"}
-    assert set(d["tank"]) == {"percent", "level_mm"}
+    assert set(d["tank"]) == {"percent", "level_mm", "capacity"}
+    assert set(d["tank"]["capacity"]) == {"value", "units"}
     assert set(d["units"]) == {"length"}
     assert set(d["alerts"]) == {"unexpected_flow", "low_flow"}
     assert set(d["system"]) == {"timestamp", "status"}
@@ -69,6 +74,7 @@ def test_defaults_are_no_data():
     assert d["volume"]["total"] is None
     assert d["tank"]["percent"] is None
     assert d["tank"]["level_mm"] is None
+    assert d["tank"]["capacity"] == {"value": None, "units": None}
     # Non-reading fields have real defaults.
     assert d["volume"]["units"] == "units"
     assert d["units"]["length"] == "inch"
@@ -91,10 +97,29 @@ def test_update_from_dict_round_trip():
         "low_alarm": 34.2,
     }
     assert d["volume"] == {"total": 58213.0, "units": "gal"}
-    assert d["tank"] == {"percent": 48.8, "level_mm": 19030.0}
+    assert d["tank"] == {
+        "percent": 48.8,
+        "level_mm": 19030.0,
+        "capacity": {"value": 100000.0, "units": "L"},
+    }
     assert d["units"] == {"length": "inch"}
     assert d["alerts"] == {"unexpected_flow": False, "low_flow": True}
     assert d["system"]["status"] == "running"
+
+
+def test_tank_capacity_passthrough_and_clear():
+    """tank.capacity is a dumb pass-through: set, kept when absent, cleared by None."""
+    data = DashboardData()
+    data.update_from_dict(FULL_UPDATE)
+    assert data.to_dict()["tank"]["capacity"] == {"value": 100000.0, "units": "L"}
+
+    # An update that omits capacity leaves it untouched.
+    data.update_from_dict({"tank": {"percent": 10.0}})
+    assert data.to_dict()["tank"]["capacity"] == {"value": 100000.0, "units": "L"}
+
+    # An explicit None clears the reading.
+    data.update_from_dict({"tank": {"capacity": {"value": None, "units": None}}})
+    assert data.to_dict()["tank"]["capacity"] == {"value": None, "units": None}
 
 
 def test_explicit_none_clears_reading():
@@ -123,5 +148,9 @@ def test_absent_keys_keep_current_values():
 
     data.update_from_dict({"tank": {"percent": 50.1}})
     d = data.to_dict()
-    assert d["tank"] == {"percent": 50.1, "level_mm": 19030.0}
+    assert d["tank"] == {
+        "percent": 50.1,
+        "level_mm": 19030.0,
+        "capacity": {"value": 100000.0, "units": "L"},
+    }
     assert d["pressure"]["value"] == 3.2

@@ -187,16 +187,6 @@ body {
     font-weight: 600;
     color: #fff;
     background: #e67e22;
-    cursor: pointer;
-    transition: transform 0.1s ease, background 0.2s ease;
-}
-
-.dev-btn:hover {
-    background: #d35400;
-}
-
-.dev-btn:active {
-    transform: scale(0.95);
 }
 
 .dev-btn.active {
@@ -205,10 +195,6 @@ body {
 
 .dev-btn-clear {
     background: #3498db;
-}
-
-.dev-btn-clear:hover {
-    background: #2980b9;
 }
 
 /* Footer Logo */

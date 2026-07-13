@@ -124,6 +124,11 @@ class PetronashHmiApplication(Application):
         # Sensor display units + alarm types: fetched once from deployment_config.
         self._measurement_units: Dict[str, Optional[str]] = {}
         self._alarm_types: Dict[str, Optional[str]] = {}
+        # Tank capacity from the level sensor's deployment_config (max_volume +
+        # volume_units); a dumb pass-through into DashboardData v2 — the
+        # time-to-empty math lives entirely in hmi-core.js.
+        self._tank_capacity_value: Optional[float] = None
+        self._tank_capacity_units: Optional[str] = None
         await self._load_deployment_config()
 
         # Alarm setpoints: cached ui_cmds aggregate, refreshed on a slow cadence.
@@ -146,11 +151,19 @@ class PetronashHmiApplication(Application):
 
         flow_app = self.config.flow_sensor_app.value
         pressure_app = self.config.pressure_sensor_app.value
+        tank_app = self.config.tank_level_app.value
 
         for app_key in (flow_app, pressure_app):
             app_config = applications.get(app_key) or {}
             self._measurement_units[app_key] = app_config.get("measurement_units")
             self._alarm_types[app_key] = alarm_type_from_app_config(app_config)
+
+        # Tank capacity: the level sensor app carries max_volume + volume_units
+        # in its own deployment_config block. Tolerate absence -> None, which
+        # makes the time-to-empty feature render "—".
+        tank_config = applications.get(tank_app) or {}
+        self._tank_capacity_value = tank_config.get("max_volume")
+        self._tank_capacity_units = tank_config.get("volume_units")
 
     async def _refresh_ui_cmds(self):
         """Refresh the cached ui_cmds aggregate if the cache is stale."""
@@ -230,6 +243,10 @@ class PetronashHmiApplication(Application):
             "tank": {
                 "percent": tank_percent,
                 "level_mm": level_mm,
+                "capacity": {
+                    "value": self._tank_capacity_value,
+                    "units": self._tank_capacity_units,
+                },
             },
             "units": {"length": length_unit},
             "alerts": {

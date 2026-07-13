@@ -37,7 +37,11 @@ dashboard.update_data(
     pressure={"value": 3.2, "units": "PSI", "high_alarm": None},
     flow={"value": 42.7, "units": "GPD", "high_alarm": 63.3, "low_alarm": 34.2},
     volume={"total": 58213.0, "units": "gal"},
-    tank={"percent": 62.0, "level_mm": 1450.0},
+    tank={
+        "percent": 62.0,
+        "level_mm": 1450.0,
+        "capacity": {"value": 100000, "units": "L"},
+    },
     units={"length": "inch"},
     alerts={"unexpected_flow": False, "low_flow": False},
 )
