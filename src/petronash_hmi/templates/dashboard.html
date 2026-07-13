@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIA Remote Command</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hmi-core.css') }}">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
@@ -28,143 +29,10 @@
         </header>
 
         <main class="dashboard-content">
-            <div class="hmi-grid">
-                <!-- Pump Column -->
-                <section class="control-section pump-section">
-                    <h2 id="pump1-heading"><i class="fas fa-pump"></i> Pump</h2>
-                    <div class="controls-grid controls-grid-vertical">
-                        <div class="control-card">
-                            <h3>Pump State</h3>
-                            <div class="state-display" id="pump-state">
-                                <span class="state-value">standby</span>
-                            </div>
-                        </div>
-                        <div class="control-card">
-                            <h3>Pressure</h3>
-                            <div class="value-display" id="skid-pressure">
-                                <span class="value">0.0</span>
-                                <span class="unit">psi</span>
-                            </div>
-                            <div class="alarm-level">
-                                <span class="alarm-label">High Alarm:</span>
-                                <span class="alarm-value" id="pressure-high-alarm">0.0</span>
-                                <span class="alarm-unit">psi</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Pump 2 Column (only rendered when a second pump app is configured) -->
-                <section class="control-section pump-section hidden" id="pump2-section">
-                    <h2><i class="fas fa-pump"></i> Pump 2</h2>
-                    <div class="controls-grid controls-grid-vertical">
-                        <div class="control-card">
-                            <h3>Pump State</h3>
-                            <div class="state-display" id="pump2-state">
-                                <span class="state-value">standby</span>
-                            </div>
-                        </div>
-                        <div class="control-card">
-                            <h3>Pressure</h3>
-                            <div class="value-display" id="pump2-pressure">
-                                <span class="value">0.0</span>
-                                <span class="unit">psi</span>
-                            </div>
-                            <div class="alarm-level">
-                                <span class="alarm-label">High Alarm:</span>
-                                <span class="alarm-value" id="pump2-pressure-high-alarm">0.0</span>
-                                <span class="alarm-unit">psi</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Skid Column -->
-                <section class="control-section skid-section">
-                    <h2><i class="fas fa-cogs"></i> Skid</h2>
-                    <div class="controls-grid controls-grid-vertical">
-                        <div class="control-card">
-                            <h3>Flow</h3>
-                            <div class="value-display" id="skid-flow">
-                                <span class="value">0.0</span>
-                                <span class="unit">GPD</span>
-                            </div>
-                            <div class="alarm-level">
-                                <span class="alarm-label">High Alarm:</span>
-                                <span class="alarm-value" id="flow-high-alarm">0.0</span>
-                                <span class="alarm-unit">GPD</span>
-                            </div>
-                            <div class="alarm-level">
-                                <span class="alarm-label">Low Alarm:</span>
-                                <span class="alarm-value" id="flow-low-alarm">0.0</span>
-                                <span class="alarm-unit">GPD</span>
-                            </div>
-                        </div>
-                        <div class="control-card">
-                            <h3>Total Flow</h3>
-                            <div class="value-display" id="skid-total-flow">
-                                <span class="value">0.0</span>
-                                <span class="unit">Gal</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Tank Column -->
-                <section class="control-section tank-section">
-                    <h2><i class="fas fa-tint"></i> Tank Level</h2>
-                    <div class="tank-gauge-wrap">
-                        <div class="tank-gauge">
-                            <div class="tank-gauge-fill" id="tank-progress"></div>
-                        </div>
-                        <div class="tank-gauge-readouts">
-                            <div class="value-display" id="tank-level-percent">
-                                <span class="value">0</span>
-                                <span class="unit">%</span>
-                            </div>
-                            <div class="value-display" id="tank-level-mm">
-                                <span class="value">0</span>
-                                <span class="unit">"</span>
-                            </div>
-                            <div class="alarm-level">
-                                <span class="alarm-label">Low Alarm:</span>
-                                <span class="alarm-value" id="tank-level-low-alarm">0</span>
-                                <span class="alarm-unit" id="tank-level-low-alarm-unit">"</span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
+            <!-- The shared render core (static/js/hmi-core.js) builds the whole HMI in here -->
+            <div id="hmi-root"></div>
         </main>
     </div>
-
-    <div id="fault-popover" class="fault-popover hidden">
-        <div class="fault-popover-content">
-            <h2>Fault Detected</h2>
-            <ul id="fault-message-list"></ul>
-            <p class="fault-popover-instructions">Press the start button to clear the faults.</p>
-        </div>
-    </div>
-
-    <!-- Screen dim behind the alarm popover; fades in while an alarm is active -->
-    <div id="alarm-dim" class="alarm-dim"></div>
-
-    <!-- Alarm popover: shown when a live reading exceeds its alarm setpoint -->
-    <div id="alarm-popover" class="fault-popover alarm-popover hidden">
-        <div class="fault-popover-content">
-            <h2>Alarm</h2>
-            <ul id="alarm-message-list"></ul>
-            <p class="fault-popover-instructions">Correct the condition to clear the alarm.</p>
-        </div>
-    </div>
-
-    <div id="valve-control-popup" class="valve-control-popup hidden">
-        <div class="valve-control-popup-content">
-            <p class="valve-popup-main">Valve Control Disabled</p>
-            <p class="valve-popup-sub">Calibration in progress...</p>
-        </div>
-    </div>
-    
 
     <!-- Loading overlay -->
     <div id="loading-overlay" class="loading-overlay">
@@ -180,19 +48,19 @@
     </div>
 
     {% if dev_mode %}
-    <!-- Dev-only toolbar: manually force an alarm condition to test the popover -->
+    <!-- Dev-only toolbar: inject v2 fixture data / toggle the two alert flags -->
     <div id="dev-toolbar" class="dev-toolbar">
         <span class="dev-toolbar-label"><i class="fas fa-flask"></i> Dev</span>
-        <button type="button" class="dev-btn" data-alarm="pressure_high">High Pressure</button>
-        <button type="button" class="dev-btn" data-alarm="tank_low">Low Tank</button>
-        <button type="button" class="dev-btn" data-alarm="flow_high">High Flow</button>
-        <button type="button" class="dev-btn" data-alarm="flow_low">Low Flow</button>
-        <button type="button" class="dev-btn dev-btn-clear" data-alarm="clear">Clear</button>
+        <button type="button" class="dev-btn" data-dev="fixture">Fixture Data</button>
+        <button type="button" class="dev-btn" data-dev="nulls">Null Data</button>
+        <button type="button" class="dev-btn" data-dev="toggle-unexpected">Unexpected Flow</button>
+        <button type="button" class="dev-btn" data-dev="toggle-low">Low Flow</button>
+        <button type="button" class="dev-btn dev-btn-clear" data-dev="clear">Clear</button>
     </div>
     {% endif %}
 
-    <!-- Scripts -->
+    <!-- Scripts: socket.io is a classic script (global `io`); the shell is an ES module -->
     <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,289 @@
+/* Petronash HMI render core styles.
+ *
+ * Everything hmi-core.js builds is styled from this file, and EVERY selector
+ * is scoped under .hmi-root (the class createHmi() adds to its root element).
+ * That keeps the sheet safe to inject into the Doover cloud UI alongside the
+ * host page's own styles — nothing here may target body/html or bare tags.
+ *
+ * Page chrome (header, footer, dev toolbar, loading overlay) lives in
+ * dashboard.css and is local-shell-only.
+ */
+
+.hmi-root {
+    position: relative;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+}
+
+/* Column grid — Pump 1 | Pump 2 | Skid | Tank. auto-fit keeps it usable in
+   the narrower cloud-widget container without viewport media queries. */
+.hmi-root .hmi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(clamp(180px, 22vw, 260px), 1fr));
+    gap: clamp(10px, 2vw, 20px);
+    align-items: stretch;
+}
+
+/* Column sections */
+.hmi-root .control-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: clamp(8px, 1.5vw, 15px);
+    padding: clamp(12px, 2vw, 20px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hmi-root .control-section:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.hmi-root .control-section h2 {
+    color: #2c3e50;
+    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+    font-weight: 600;
+    margin: 0 0 clamp(8px, 1.5vh, 15px) 0;
+    padding-bottom: clamp(4px, 1vh, 8px);
+    border-bottom: 2px solid #ecf0f1;
+}
+
+/* Card stacks inside a column */
+.hmi-root .controls-grid {
+    display: grid;
+    gap: clamp(8px, 1.5vw, 15px);
+}
+
+.hmi-root .controls-grid.controls-grid-vertical {
+    grid-template-columns: 1fr;
+}
+
+/* Cards */
+.hmi-root .control-card {
+    background: #f8f9fa;
+    border-radius: clamp(5px, 1vw, 10px);
+    padding: clamp(8px, 1.5vw, 15px);
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.hmi-root .control-card:hover {
+    border-color: #3498db;
+    background: #ffffff;
+}
+
+.hmi-root .control-card h3 {
+    color: #2c3e50;
+    font-size: clamp(0.7rem, 1.8vw, 0.9rem);
+    margin: 0 0 clamp(6px, 1vh, 10px) 0;
+    font-weight: 600;
+}
+
+/* Value readouts */
+.hmi-root .value-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.hmi-root .value {
+    font-size: clamp(1.2rem, 3.5vw, 1.8rem);
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.hmi-root .unit {
+    font-size: clamp(0.6rem, 1.5vw, 0.8rem);
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+/* Alarm setpoint readouts (shown under the relevant value) */
+.hmi-root .alarm-level {
+    margin-top: clamp(4px, 0.8vh, 8px);
+    text-align: center;
+    font-size: clamp(0.7rem, 1.4vw, 0.85rem);
+    line-height: 1.4;
+    color: #e74c3c;
+    font-weight: 700;
+}
+
+.hmi-root .alarm-level .alarm-label {
+    color: #7f8c8d;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+.hmi-root .alarm-level .alarm-unit {
+    color: #95a5a6;
+    font-weight: 500;
+    margin-left: 2px;
+    font-size: 0.85em;
+}
+
+/* Pump state pills */
+.hmi-root .state-display {
+    margin-bottom: clamp(6px, 1vh, 10px);
+}
+
+.hmi-root .state-value {
+    display: inline-block;
+    padding: clamp(4px, 1vw, 8px) clamp(8px, 2vw, 16px);
+    border-radius: clamp(10px, 2vw, 20px);
+    font-weight: 600;
+    font-size: clamp(0.6rem, 1.8vw, 0.8rem);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hmi-root .state-value.on { background: #27ae60; color: white; }
+.hmi-root .state-value.off { background: #95a5a6; color: white; }
+.hmi-root .state-value.unknown { background: #ecf0f1; color: #7f8c8d; }
+
+/* Vertical tank level gauge */
+.hmi-root .tank-gauge-wrap {
+    display: flex;
+    gap: clamp(12px, 2vw, 24px);
+    align-items: stretch;
+    padding: clamp(8px, 1.5vw, 15px) clamp(4px, 1vw, 10px);
+}
+
+.hmi-root .tank-gauge {
+    position: relative;
+    width: clamp(56px, 7vw, 90px);
+    min-height: clamp(160px, 28vh, 300px);
+    flex-shrink: 0;
+    background: #ecf0f1;
+    border: 3px solid #bdc3c7;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+}
+
+.hmi-root .tank-gauge-fill {
+    width: 100%;
+    height: 0%;
+    background: linear-gradient(0deg, #27ae60, #2ecc71);
+    transition: height 0.5s ease;
+}
+
+.hmi-root .tank-gauge-fill.medium {
+    background: linear-gradient(0deg, #f39c12, #e67e22);
+}
+
+.hmi-root .tank-gauge-fill.low {
+    background: linear-gradient(0deg, #e74c3c, #c0392b);
+}
+
+.hmi-root .tank-gauge-readouts {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: clamp(12px, 2.5vh, 28px);
+    flex: 1;
+}
+
+/* Section accent colours */
+.hmi-root .pump-section h2 { border-bottom-color: #3498db; }
+.hmi-root .skid-section h2 { border-bottom-color: #9b59b6; }
+.hmi-root .tank-section h2 { border-bottom-color: #27ae60; }
+
+/* Alert dim + popover — absolutely positioned within .hmi-root so it also
+   behaves inside the cloud widget (no viewport-fixed overlay there). */
+.hmi-root .hmi-alert-dim {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: clamp(8px, 1.5vw, 15px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 20;
+}
+
+.hmi-root .hmi-alert-dim.active {
+    opacity: 1;
+}
+
+.hmi-root .hmi-alert-popover {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    min-width: clamp(260px, 32vw, 380px);
+    max-width: 90%;
+    font-size: 1.4rem;
+    background: rgba(230, 126, 34, 0.96);
+    color: #ffffff;
+    border-radius: clamp(8px, 1.5vw, 14px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+    z-index: 21;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translate(-50%, -50%);
+}
+
+.hmi-root .hmi-alert-popover.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, calc(-50% - 20px));
+}
+
+.hmi-root .hmi-alert-content {
+    padding: clamp(16px, 2vw, 24px);
+}
+
+.hmi-root .hmi-alert-content h2 {
+    font-size: clamp(1.4rem, 3.5vw, 1.96rem);
+    margin: 0 0 clamp(8px, 1.5vh, 12px) 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hmi-root .hmi-alert-content h2::before {
+    content: "⚠";
+}
+
+.hmi-root .hmi-alert-list {
+    list-style: none;
+    margin: 0 0 clamp(10px, 1.5vh, 16px) 0;
+    padding: 0;
+}
+
+.hmi-root .hmi-alert-list li {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.hmi-root .hmi-alert-list li:last-child {
+    margin-bottom: 0;
+}
+
+.hmi-root .hmi-alert-instructions {
+    font-size: clamp(1.12rem, 2.8vw, 1.33rem);
+    opacity: 0.85;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* Animations */
+@keyframes hmi-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hmi-root .control-section {
+    animation: hmi-slide-in 0.5s ease-out;
+}
+
+.hmi-root .pump-section { animation-delay: 0s; }
+.hmi-root .skid-section { animation-delay: 0.05s; }
+.hmi-root .tank-section { animation-delay: 0.1s; }

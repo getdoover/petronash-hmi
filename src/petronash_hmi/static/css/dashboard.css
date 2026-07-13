@@ -1,4 +1,11 @@
-/* Reset and base styles */
+/* Petronash HMI — local shell page chrome.
+ *
+ * Styles for the parts only the device-local page has: full-screen layout,
+ * header (logos, connection status, timestamp), footer logo, loading overlay
+ * and the dev toolbar. All HMI tile/popover styling lives in hmi-core.css
+ * (scoped under .hmi-root) so the cloud widget can share it.
+ */
+
 * {
     margin: 0;
     padding: 0;
@@ -48,11 +55,8 @@ body {
     color: #2c3e50;
     font-size: clamp(1.5rem, 4vw, 2.2rem);
     font-weight: 600;
-}
-
-.dashboard-header h1 i {
-    margin-right: 15px;
-    color: #3498db;
+    display: flex;
+    align-items: center;
 }
 
 .header-logo {
@@ -60,11 +64,6 @@ body {
     width: auto;
     margin-right: 15px;
     vertical-align: middle;
-}
-
-.dashboard-header h1 {
-    display: flex;
-    align-items: center;
 }
 
 .title-logo {
@@ -106,7 +105,7 @@ body {
     margin-right: 8px;
 }
 
-/* Main content */
+/* Main content hosts the HMI root */
 .dashboard-content {
     flex: 1;
     display: flex;
@@ -117,300 +116,6 @@ body {
     min-height: 0;
     padding-bottom: clamp(10px, 2vw, 30px);
 }
-
-/* HMI 3-column layout - Pump | Skid | Tank */
-.hmi-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: clamp(10px, 2vw, 20px);
-    flex-shrink: 0;
-    align-items: stretch;
-}
-
-/* 4-column layout when a second pump is configured - Pump 1 | Pump 2 | Skid | Tank */
-.hmi-grid.with-pump2 {
-    grid-template-columns: repeat(4, 1fr);
-}
-
-/* Pump 2 section is hidden until the app reports a second pump app is configured */
-.control-section.hidden {
-    display: none;
-}
-
-/* Control sections */
-.control-section {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: clamp(8px, 1.5vw, 15px);
-    padding: clamp(12px, 2vw, 20px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    flex-shrink: 0;
-}
-
-.control-section:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-}
-
-.control-section h2 {
-    color: #2c3e50;
-    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-    margin-bottom: clamp(8px, 1.5vh, 15px);
-    padding-bottom: clamp(4px, 1vh, 8px);
-    border-bottom: 2px solid #ecf0f1;
-}
-
-.control-section h2 i {
-    margin-right: 10px;
-    color: #3498db;
-}
-
-.pump-section h2 i { color: #3498db; }
-.solar-section h2 i { color: #f39c12; }
-.tank-section h2 i { color: #27ae60; }
-.skid-section h2 i { color: #9b59b6; }
-
-/* Controls grid */
-.controls-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(clamp(100px, 12vw, 160px), 1fr));
-    gap: clamp(8px, 1.5vw, 15px);
-}
-
-/* Vertical card stack (Pump and Skid columns).
-   Compound selector keeps higher specificity than the responsive
-   .controls-grid overrides so cards always stay stacked. */
-.controls-grid.controls-grid-vertical {
-    grid-template-columns: 1fr;
-}
-
-/* Alarm setpoint readouts (shown under the relevant value) */
-.alarm-level {
-    margin-top: clamp(4px, 0.8vh, 8px);
-    text-align: center;
-    font-size: clamp(0.7rem, 1.4vw, 0.85rem);
-    line-height: 1.4;
-    color: #e74c3c;
-    font-weight: 700;
-}
-
-.alarm-level .alarm-label {
-    color: #7f8c8d;
-    font-weight: 500;
-    margin-right: 4px;
-}
-
-.alarm-level .alarm-unit {
-    color: #95a5a6;
-    font-weight: 500;
-    margin-left: 2px;
-    font-size: 0.85em;
-}
-
-/* Vertical tank level gauge */
-.tank-gauge-wrap {
-    display: flex;
-    gap: clamp(12px, 2vw, 24px);
-    align-items: stretch;
-    padding: clamp(8px, 1.5vw, 15px) clamp(4px, 1vw, 10px);
-}
-
-.tank-gauge {
-    position: relative;
-    width: clamp(56px, 7vw, 90px);
-    min-height: clamp(160px, 28vh, 300px);
-    flex-shrink: 0;
-    background: #ecf0f1;
-    border: 3px solid #bdc3c7;
-    border-radius: 10px;
-    overflow: hidden;
-    display: flex;
-    align-items: flex-end;
-}
-
-.tank-gauge-fill {
-    width: 100%;
-    height: 0%;
-    background: linear-gradient(0deg, #27ae60, #2ecc71);
-    transition: height 0.5s ease;
-}
-
-.tank-gauge-fill.medium {
-    background: linear-gradient(0deg, #f39c12, #e67e22);
-}
-
-.tank-gauge-fill.low {
-    background: linear-gradient(0deg, #e74c3c, #c0392b);
-}
-
-.tank-gauge-readouts {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: clamp(12px, 2.5vh, 28px);
-    flex: 1;
-}
-
-/* Selected pump highlighting */
-.controls-grid {
-    border: 4px solid transparent;
-    border-radius: 10px;
-    box-shadow: 0 0 0 3px transparent;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
-}
-
-.controls-grid.selected-pump {
-    border: 4px solid #ff8c00;
-    border-radius: 10px;
-    box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.2);
-}
-
-/* Spacing between pump control sections */
-#pump-control-1 {
-    margin-bottom: 3px;
-}
-
-/* Control cards */
-.control-card {
-    background: #f8f9fa;
-    border-radius: clamp(5px, 1vw, 10px);
-    padding: clamp(8px, 1.5vw, 15px);
-    text-align: center;
-    border: 2px solid transparent;
-    transition: all 0.3s ease;
-}
-
-.control-card:hover {
-    border-color: #3498db;
-    background: #ffffff;
-}
-
-.control-card h3 {
-    color: #2c3e50;
-    font-size: clamp(0.7rem, 1.8vw, 0.9rem);
-    margin-bottom: clamp(6px, 1vh, 10px);
-    font-weight: 600;
-}
-
-/* Value displays */
-.value-display {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-}
-
-.value {
-    font-size: clamp(1.2rem, 3.5vw, 1.8rem);
-    font-weight: 700;
-    color: #2c3e50;
-}
-
-.unit {
-    font-size: clamp(0.6rem, 1.5vw, 0.8rem);
-    color: #7f8c8d;
-    font-weight: 500;
-}
-
-/* State displays */
-.state-display {
-    margin-bottom: clamp(6px, 1vh, 10px);
-}
-
-.state-value {
-    display: inline-block;
-    padding: clamp(4px, 1vw, 8px) clamp(8px, 2vw, 16px);
-    border-radius: clamp(10px, 2vw, 20px);
-    font-weight: 600;
-    font-size: clamp(0.6rem, 1.8vw, 0.8rem);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.state-value.standby { background: #95a5a6; color: white; }
-.state-value.pumping { background: #27ae60; color: white; }
-.state-value.calibration { background: #f39c12; color: white; }
-.state-value.closed { background: #f39c12; color: white; }
-.state-value.opened { background: #27ae60; color: white; }
-
-/* State controls */
-.state-controls {
-    display: flex;
-    gap: clamp(4px, 1vw, 8px);
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.state-btn {
-    padding: clamp(4px, 1vw, 8px) clamp(6px, 1.5vw, 10px);
-    border: none;
-    border-radius: clamp(8px, 1.5vw, 12px);
-    background: #ecf0f1;
-    color: #2c3e50;
-    font-size: clamp(0.5rem, 1.5vw, 0.7rem);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.state-btn:hover {
-    background: #3498db;
-    color: white;
-    transform: translateY(-2px);
-}
-
-.state-btn.active {
-    background: #3498db;
-    color: white;
-}
-
-/* Progress bars */
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background: #ecf0f1;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 10px;
-}
-
-.progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #27ae60, #2ecc71);
-    border-radius: 4px;
-    transition: width 0.5s ease;
-    width: 0%;
-}
-
-.progress-fill.low {
-    background: linear-gradient(90deg, #e74c3c, #c0392b);
-}
-
-.progress-fill.medium {
-    background: linear-gradient(90deg, #f39c12, #e67e22);
-}
-
-/* Status display */
-.status-display {
-    text-align: center;
-}
-
-.status-value {
-    display: inline-block;
-    padding: 10px 20px;
-    border-radius: 25px;
-    font-weight: 600;
-    font-size: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.status-value.running { background: #27ae60; color: white; }
-.status-value.warning { background: #f39c12; color: white; }
-.status-value.error { background: #e74c3c; color: white; }
-.status-value.maintenance { background: #9b59b6; color: white; }
-
 
 /* Loading overlay */
 .loading-overlay {
@@ -448,134 +153,7 @@ body {
     font-weight: 500;
 }
 
-/* Fault popover */
-.fault-popover {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    min-width: clamp(260px, 32vw, 380px);
-    font-size: 1.4rem;
-    background: rgba(231, 76, 60, 0.95);
-    color: #ffffff;
-    border-radius: clamp(8px, 1.5vw, 14px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-    z-index: 1002;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    transform: translate(-50%, -50%);
-}
-
-.fault-popover.hidden {
-    opacity: 0;
-    pointer-events: none;
-    transform: translate(-50%, calc(-50% - 20px));
-}
-
-/* Valve control popup */
-.valve-control-popup {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    min-width: clamp(300px, 40vw, 500px);
-    font-size: clamp(1.2rem, 3vw, 1.8rem);
-    background: rgba(255, 245, 235, 0.95);
-    color: #2c3e50;
-    border: 3px solid #ff8c00;
-    border-radius: clamp(8px, 1.5vw, 14px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-    z-index: 1003;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    transform: translate(-50%, -50%);
-    padding: clamp(20px, 3vw, 40px);
-    text-align: center;
-    font-weight: 600;
-}
-
-.valve-control-popup.hidden {
-    opacity: 0;
-    pointer-events: none;
-    transform: translate(-50%, calc(-50% - 20px));
-}
-
-.valve-control-popup-content {
-    padding: 0;
-}
-
-.valve-control-popup-content p {
-    margin: 0;
-    line-height: 1.5;
-}
-
-.valve-popup-main {
-    margin-bottom: clamp(8px, 1.5vh, 12px);
-}
-
-.valve-popup-sub {
-    font-size: clamp(0.9rem, 2.2vw, 1.3rem);
-    opacity: 0.85;
-    font-weight: 500;
-}
-
-.fault-popover-content {
-    padding: clamp(16px, 2vw, 24px);
-}
-
-.fault-popover-content h2 {
-    font-size: clamp(1.4rem, 3.5vw, 1.96rem);
-    margin-bottom: clamp(8px, 1.5vh, 12px);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.fault-popover-content h2::before {
-    content: "\f071";
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-}
-
-.fault-popover-content ul {
-    list-style: none;
-    margin-bottom: clamp(10px, 1.5vh, 16px);
-}
-
-.fault-popover-content li {
-    font-weight: 600;
-    margin-bottom: 6px;
-}
-
-.fault-popover-content li:last-child {
-    margin-bottom: 0;
-}
-
-.fault-popover-instructions {
-    font-size: clamp(1.12rem, 2.8vw, 1.33rem);
-    opacity: 0.85;
-    font-weight: 500;
-}
-
-/* Screen dim shown behind the alarm popover while an alarm is active.
-   Sits above the dashboard content but below the popover, and fades in/out. */
-.alarm-dim {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s ease;
-    z-index: 1003;
-}
-
-.alarm-dim.active {
-    opacity: 1;
-}
-
-/* Alarm popover: amber accent to distinguish setpoint alarms from pump-trip faults */
-.alarm-popover {
-    background: rgba(230, 126, 34, 0.96);
-    z-index: 1004;
-}
-
-/* Dev-only toolbar for manually triggering alarms */
+/* Dev-only toolbar for injecting fixture data and toggling the alert flags */
 .dev-toolbar {
     position: fixed;
     left: 50%;
@@ -621,6 +199,10 @@ body {
     transform: scale(0.95);
 }
 
+.dev-btn.active {
+    outline: 2px solid #f1c40f;
+}
+
 .dev-btn-clear {
     background: #3498db;
 }
@@ -628,167 +210,6 @@ body {
 .dev-btn-clear:hover {
     background: #2980b9;
 }
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .dashboard-header {
-        flex-direction: column;
-        gap: clamp(10px, 2vh, 15px);
-        text-align: center;
-    }
-    
-    .header-info {
-        align-items: center;
-    }
-    
-    .hmi-grid,
-    .hmi-grid.with-pump2 {
-        grid-template-columns: 1fr;
-    }
-
-    .controls-grid {
-        grid-template-columns: repeat(auto-fit, minmax(clamp(100px, 25vw, 150px), 1fr));
-    }
-
-    .controls-grid-vertical {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 480px) {
-    .controls-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .state-controls {
-        flex-direction: column;
-    }
-    
-    .state-btn {
-        width: 100%;
-    }
-}
-
-/* Very small screens - ensure everything fits */
-@media (max-height: 700px) {
-    .dashboard-container {
-        padding: clamp(5px, 1vw, 10px);
-    }
-    
-    .dashboard-header {
-        margin-bottom: clamp(6px, 1.5vh, 12px);
-        padding: clamp(10px, 1.5vw, 20px);
-    }
-    
-    .dashboard-content {
-        gap: clamp(8px, 1.5vh, 15px);
-        padding-bottom: clamp(6px, 1.5vh, 12px);
-    }
-    
-    .control-section {
-        padding: 12px;
-    }
-    
-    .control-section h2 {
-        font-size: clamp(1rem, 2vw, 1.2rem);
-        margin-bottom: clamp(6px, 1vh, 10px);
-    }
-    
-    .controls-grid {
-        grid-template-columns: repeat(auto-fit, minmax(clamp(80px, 10vw, 120px), 1fr));
-        gap: clamp(6px, 1vw, 12px);
-    }
-    
-    .control-card {
-        padding: clamp(6px, 1vw, 12px);
-    }
-    
-    .value {
-        font-size: clamp(1rem, 3vw, 1.5rem);
-    }
-}
-
-@media (max-height: 500px) {
-    .dashboard-container {
-        padding: clamp(3px, 0.5vw, 8px);
-    }
-    
-    .dashboard-header {
-        margin-bottom: clamp(4px, 1vh, 8px);
-        padding: clamp(8px, 1vw, 15px);
-    }
-    
-    .dashboard-header h1 {
-        font-size: clamp(1.2rem, 3vw, 1.6rem);
-    }
-    
-    .dashboard-content {
-        gap: clamp(5px, 1vh, 10px);
-        padding-bottom: clamp(4px, 1vh, 8px);
-    }
-    
-    .control-section {
-        padding: clamp(6px, 1vw, 12px);
-    }
-    
-    .control-section h2 {
-        font-size: clamp(0.9rem, 1.8vw, 1.1rem);
-        margin-bottom: clamp(4px, 0.8vh, 8px);
-    }
-    
-    .controls-grid {
-        grid-template-columns: repeat(auto-fit, minmax(clamp(70px, 8vw, 100px), 1fr));
-        gap: clamp(4px, 0.8vw, 8px);
-    }
-    
-    .control-card {
-        padding: clamp(4px, 0.8vw, 8px);
-    }
-    
-    .control-card h3 {
-        font-size: clamp(0.6rem, 1.5vw, 0.8rem);
-        margin-bottom: clamp(4px, 0.8vh, 6px);
-    }
-    
-    .value {
-        font-size: clamp(0.9rem, 2.5vw, 1.3rem);
-    }
-    
-    .unit {
-        font-size: clamp(0.5rem, 1.2vw, 0.7rem);
-    }
-}
-
-/* Animation classes */
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
-.updating {
-    animation: pulse 1s infinite;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.control-section {
-    animation: slideIn 0.5s ease-out;
-}
-
-.pump-section { animation-delay: 0s; }
-.skid-section { animation-delay: 0.05s; }
-.solar-section { animation-delay: 0.1s; }
-.tank-section { animation-delay: 0.2s; }
 
 /* Footer Logo */
 .footer-logo {
@@ -804,4 +225,54 @@ body {
 .footer-logo img {
     height: 30px;
     width: auto;
+}
+
+/* Responsive header */
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        gap: clamp(10px, 2vh, 15px);
+        text-align: center;
+    }
+
+    .header-info {
+        align-items: center;
+    }
+}
+
+/* Very small screens - ensure everything fits */
+@media (max-height: 700px) {
+    .dashboard-container {
+        padding: clamp(5px, 1vw, 10px);
+    }
+
+    .dashboard-header {
+        margin-bottom: clamp(6px, 1.5vh, 12px);
+        padding: clamp(10px, 1.5vw, 20px);
+    }
+
+    .dashboard-content {
+        gap: clamp(8px, 1.5vh, 15px);
+        padding-bottom: clamp(6px, 1.5vh, 12px);
+    }
+}
+
+@media (max-height: 500px) {
+    .dashboard-container {
+        padding: clamp(3px, 0.5vw, 8px);
+    }
+
+    .dashboard-header {
+        margin-bottom: clamp(4px, 1vh, 8px);
+        padding: clamp(8px, 1vw, 15px);
+    }
+
+    .dashboard-header h1 {
+        font-size: clamp(1.2rem, 3vw, 1.6rem);
+    }
+
+    .dashboard-content {
+        gap: clamp(5px, 1vh, 10px);
+        padding-bottom: clamp(4px, 1vh, 8px);
+    }
 }
