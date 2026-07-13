@@ -10,7 +10,7 @@
         "depends_on": [],
         "owner_org_key": "36a22e32-ab81-4a39-b400-869d532a052d",
         "image_name": "ghcr.io/getdoover/petronash-hmi:main",
-        "container_registry_profile_key": "88953909-e9c4-4f81-9ec0-56239d4b0a2e",
+        "container_registry_profile_id": "145420619704469767",
         "build_args": "--platform linux/amd64,linux/arm64",
         "config_schema": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -98,7 +98,9 @@
         "key": "",
         "code_repo_key": null,
         "repo_branch": "main",
-        "staging_config": {},
+        "staging_config": {
+            "container_registry_profile_id": "7369503729718280192"
+        },
         "ui_schema": {
             "displayString": "$config.app().APP_DISPLAY_NAME",
             "hidden": "$config.app().hidden:boolean:false:boolean:false",
