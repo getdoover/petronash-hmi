@@ -28,7 +28,11 @@ The socket.io `data_update` payload (and `/api/data` response) is the DashboardD
   "pressure": { "value": 3.2, "units": "PSI", "high_alarm": 1500.0 },
   "flow": { "value": 26.4, "units": "GPD", "high_alarm": 63.3, "low_alarm": 34.2 },
   "volume": { "total": 58213.0, "units": "gal" },
-  "tank": { "percent": 48.8, "level_mm": 19030.0 },
+  "tank": {
+    "percent": 48.8,
+    "level_mm": 19030.0,
+    "capacity": { "value": 100000, "units": "L" }
+  },
   "units": { "length": "inch" },
   "alerts": { "unexpected_flow": false, "low_flow": false },
   "system": { "timestamp": "<iso>", "status": "running" }
@@ -37,6 +41,13 @@ The socket.io `data_update` payload (and `/api/data` response) is the DashboardD
 
 `null` means "no data" — the UI renders a placeholder (e.g. "—"), never 0. A setpoint slider
 the operator has never moved has no `ui_cmds` entry and resolves to `null`.
+
+`tank.capacity` is a dumb pass-through of the level sensor app's own
+`deployment_config` (`max_volume` + `volume_units`); it feeds the Tank Level tile's estimated
+time-to-empty readout. All of that math (current volume, gallon↔litre conversion, per-day flow
+basis, and the `Xd Yh Zm` formatting) lives solely in `hmi-core.js` so the local dashboard and
+the cloud widget can never diverge. It renders "—" whenever flow is null or ≤ 0, the tank
+percentage is null, capacity is missing, or the result is non-finite.
 
 ## Structure
 

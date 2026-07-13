@@ -73,6 +73,10 @@ class DashboardData:
         # Tank level
         self.tank_percent: Optional[float] = None
         self.tank_level_mm: Optional[float] = None
+        # Tank capacity (from the level sensor's deployment_config; dumb
+        # pass-through — the time-to-empty math lives entirely in hmi-core.js)
+        self.tank_capacity_value: Optional[float] = None
+        self.tank_capacity_units: Optional[str] = None
 
         # Display units ("mm" or "inch") for length readings; defaults to inches
         self.length_unit: str = "inch"
@@ -110,6 +114,10 @@ class DashboardData:
             "tank": {
                 "percent": self.tank_percent,
                 "level_mm": self.tank_level_mm,
+                "capacity": {
+                    "value": self.tank_capacity_value,
+                    "units": self.tank_capacity_units,
+                },
             },
             "units": {
                 "length": self.length_unit,
@@ -170,6 +178,12 @@ class DashboardData:
                 self.tank_percent = _opt_float(tank["percent"])
             if "level_mm" in tank:
                 self.tank_level_mm = _opt_float(tank["level_mm"])
+            if isinstance(tank.get("capacity"), dict):
+                capacity = tank["capacity"]
+                if "value" in capacity:
+                    self.tank_capacity_value = _opt_float(capacity["value"])
+                if "units" in capacity:
+                    self.tank_capacity_units = _opt_str(capacity["units"])
 
         if "units" in data and isinstance(data["units"], dict):
             units = data["units"]

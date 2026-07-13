@@ -15,7 +15,8 @@
  *   "flow":     { "value": 26.4|null, "units": "GPD",
  *                 "high_alarm": 63.3|null, "low_alarm": 34.2|null },
  *   "volume":   { "total": 58213.0|null, "units": "gal" },
- *   "tank":     { "percent": 48.8|null, "level_mm": 19030.0|null },
+ *   "tank":     { "percent": 48.8|null, "level_mm": 19030.0|null,
+ *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null } },
  *   "units":    { "length": "inch"|"mm" },
  *   "alerts":   { "unexpected_flow": false, "low_flow": false },
  *   "system":   { "timestamp": "<iso>", "status": "running" }
@@ -49,6 +50,111 @@ function fmtLength(mm, lengthUnit) {
         return { value: Math.round(mm).toString(), unit: "mm" };
     }
     return { value: (mm / 25.4).toFixed(1), unit: '"' };
+}
+
+// ---- Tank time-to-empty ------------------------------------------------
+//
+// Estimated time until the tank drains at the CURRENT flow rate, computed
+// entirely here (both shells' assemblers stay dumb pass-throughs — the tank
+// capacity is folded into DashboardData v2 as tank.capacity {value, units}
+// and ALL math + unit handling lives in this one place, so the two shells can
+// never diverge). Display-only: ignores any inflow.
+
+const LITRES_PER_GALLON = 3.78541; // 1 US gallon
+
+// Flow-rate unit -> multiplier converting flow.value to a per-DAY basis.
+// The volume component of every recognised flow unit is US gallons.
+const FLOW_PER_DAY_FACTOR = { GPD: 1, GPH: 24, GPM: 1440, GPS: 86400 };
+
+/** Classify a volume-unit string to "L" | "gal" | null (unrecognised). */
+function volumeClass(units) {
+    const u = typeof units === "string" ? units.trim().toLowerCase() : "";
+    if (["l", "litre", "liter", "litres", "liters"].includes(u)) {
+        return "L";
+    }
+    if (["gal", "gallon", "gallons", "g", "us gal"].includes(u)) {
+        return "gal";
+    }
+    return null;
+}
+
+/** Multiplier converting a volume in `fromUnits` to `toUnits`.
+ *  Identity when the classes match; if either is unrecognised we assume the
+ *  same volume unit and skip conversion (multiplier 1). */
+function volumeConversion(fromUnits, toUnits) {
+    const from = volumeClass(fromUnits);
+    const to = volumeClass(toUnits);
+    if (from === null || to === null || from === to) {
+        return 1;
+    }
+    return from === "gal" ? LITRES_PER_GALLON : 1 / LITRES_PER_GALLON;
+}
+
+/** Format a positive day count as "Xd Yh Zm" (rounded to the nearest minute,
+ *  so floating-point drift never turns a clean 1 day into "23h 59m"). */
+function formatDHM(days) {
+    let minutes = Math.round(days * 24 * 60);
+    if (!Number.isFinite(minutes) || minutes < 0) {
+        return PLACEHOLDER;
+    }
+    const d = Math.floor(minutes / (24 * 60));
+    minutes -= d * 24 * 60;
+    const h = Math.floor(minutes / 60);
+    const m = minutes - h * 60;
+    return `${d}d ${h}h ${m}m`;
+}
+
+/**
+ * Estimate the time until the tank empties at the current flow, formatted as
+ * "Xd Yh Zm", or the em-dash placeholder when it cannot be computed.
+ *
+ * Renders the placeholder (never 0 or a bogus number) when: flow.value is null
+ * or <= 0 (not draining / pumps off), tank.percent is null, capacity is
+ * missing, the flow-rate basis is unrecognised, or the result is non-finite.
+ *
+ * @param {object} tank - DashboardData v2 `tank` block (percent + capacity)
+ * @param {object} flow - DashboardData v2 `flow` block (value + units)
+ * @returns {string}
+ */
+export function formatTimeToEmpty(tank, flow) {
+    const capacity = tank && tank.capacity;
+    const capValue =
+        capacity && typeof capacity.value === "number" && Number.isFinite(capacity.value)
+            ? capacity.value
+            : null;
+    const percent =
+        tank && typeof tank.percent === "number" && Number.isFinite(tank.percent)
+            ? tank.percent
+            : null;
+    const flowValue =
+        flow && typeof flow.value === "number" && Number.isFinite(flow.value)
+            ? flow.value
+            : null;
+
+    if (capValue === null || percent === null) {
+        return PLACEHOLDER;
+    }
+    if (flowValue === null || flowValue <= 0) {
+        return PLACEHOLDER;
+    }
+
+    const flowUnits = flow && typeof flow.units === "string" ? flow.units.trim().toUpperCase() : "";
+    const perDayFactor = FLOW_PER_DAY_FACTOR[flowUnits];
+    if (!perDayFactor) {
+        return PLACEHOLDER; // unrecognised flow-rate basis — cannot estimate
+    }
+
+    // current_volume in capacity.units; outflow converted to the same units.
+    const currentVolume = capValue * (percent / 100);
+    const flowPerDayGal = flowValue * perDayFactor;
+    const flowPerDayInCapUnits =
+        flowPerDayGal * volumeConversion("gal", capacity.units);
+
+    const daysToEmpty = currentVolume / flowPerDayInCapUnits;
+    if (!Number.isFinite(daysToEmpty) || daysToEmpty < 0) {
+        return PLACEHOLDER;
+    }
+    return formatDHM(daysToEmpty);
 }
 
 /** Build an element with class + optional text. */
@@ -106,15 +212,16 @@ export function createHmi(rootEl, _opts = {}) {
     rootEl.innerHTML = "";
     rootEl.classList.add("hmi-root");
 
-    // ---- Pump state tiles ---------------------------------------------
+    // ---- Pumps tile: both pump states stacked in one card ---------------
     const pumpStates = [1, 2].map((n) => {
         const display = el("div", "state-display");
         const value = el("span", "state-value unknown", PLACEHOLDER);
         display.append(value);
-        const grid = el("div", "controls-grid controls-grid-vertical");
-        grid.append(card("Pump State", display));
-        return { value, section: section("pump-section", `Pump ${n}`, grid) };
+        return { value, card: card(`Pump ${n} State`, display) };
     });
+    const pumpGrid = el("div", "controls-grid controls-grid-vertical");
+    pumpGrid.append(pumpStates[0].card, pumpStates[1].card);
+    const pumpSection = section("pump-section", "Pumps", pumpGrid);
 
     // ---- Skid column: shared pressure, flow, total volume --------------
     const pressure = valueDisplay("");
@@ -141,8 +248,12 @@ export function createHmi(rootEl, _opts = {}) {
     const tankPercent = valueDisplay("%");
     const tankLevel = valueDisplay('"');
 
+    const tankTimeToEmpty = el("div", "tank-tte");
+    const tteValue = el("span", "tank-tte-value", PLACEHOLDER);
+    tankTimeToEmpty.append(el("span", "tank-tte-label", "Time to Empty"), tteValue);
+
     const readouts = el("div", "tank-gauge-readouts");
-    readouts.append(tankPercent.root, tankLevel.root);
+    readouts.append(tankPercent.root, tankLevel.root, tankTimeToEmpty);
 
     const gaugeWrap = el("div", "tank-gauge-wrap");
     gaugeWrap.append(gauge, readouts);
@@ -150,7 +261,7 @@ export function createHmi(rootEl, _opts = {}) {
 
     // ---- Grid -----------------------------------------------------------
     const grid = el("div", "hmi-grid");
-    grid.append(pumpStates[0].section, pumpStates[1].section, skidSection, tankSection);
+    grid.append(pumpSection, skidSection, tankSection);
 
     // ---- Alert popover (driven by alerts.unexpected_flow / low_flow) -----
     const alertDim = el("div", "hmi-alert-dim");
@@ -182,7 +293,7 @@ export function createHmi(rootEl, _opts = {}) {
         }
     }
 
-    function renderTank(tank, lengthUnit) {
+    function renderTank(tank, lengthUnit, flowData) {
         const percent = tank && typeof tank.percent === "number" && Number.isFinite(tank.percent)
             ? tank.percent
             : null;
@@ -205,6 +316,8 @@ export function createHmi(rootEl, _opts = {}) {
         const level = fmtLength(tank ? tank.level_mm : null, lengthUnit);
         tankLevel.value.textContent = level.value;
         tankLevel.unit.textContent = level.unit;
+
+        tteValue.textContent = formatTimeToEmpty(tank || {}, flowData || {});
     }
 
     function renderAlerts(alerts) {
@@ -256,7 +369,7 @@ export function createHmi(rootEl, _opts = {}) {
         volume.unit.textContent = volumeData.units || "";
 
         const lengthUnit = data.units && data.units.length === "mm" ? "mm" : "inch";
-        renderTank(data.tank || {}, lengthUnit);
+        renderTank(data.tank || {}, lengthUnit, flowData);
 
         renderAlerts(data.alerts);
     }
