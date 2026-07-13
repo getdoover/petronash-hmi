@@ -99,7 +99,7 @@
         "code_repo_key": null,
         "repo_branch": "main",
         "staging_config": {
-            "container_registry_profile_id": "7369503729718280192",
+            "container_registry_profile_id": "7369503578182270976",
             "id": 202276888423479815
         },
         "ui_schema": {
