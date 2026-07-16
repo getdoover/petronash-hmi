@@ -258,5 +258,8 @@ class PetronashHmiApplication(Application):
                 "low_flow": bool(
                     self.get_tag("low_flow_alert", app_key=pump_app, default=False)
                 ),
+                "low_tank_time": bool(
+                    self.get_tag("low_tank_time_alert", app_key=pump_app, default=False)
+                ),
             },
         }

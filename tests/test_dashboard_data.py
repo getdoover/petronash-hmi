@@ -14,7 +14,7 @@ FULL_UPDATE = {
         "capacity": {"value": 100000.0, "units": "L"},
     },
     "units": {"length": "inch"},
-    "alerts": {"unexpected_flow": False, "low_flow": True},
+    "alerts": {"unexpected_flow": False, "low_flow": True, "low_tank_time": True},
     "system": {"status": "running"},
 }
 
@@ -42,7 +42,7 @@ def test_to_dict_v2_shape():
     assert set(d["tank"]) == {"percent", "level_mm", "capacity"}
     assert set(d["tank"]["capacity"]) == {"value", "units"}
     assert set(d["units"]) == {"length"}
-    assert set(d["alerts"]) == {"unexpected_flow", "low_flow"}
+    assert set(d["alerts"]) == {"unexpected_flow", "low_flow", "low_tank_time"}
     assert set(d["system"]) == {"timestamp", "status"}
 
     # No legacy v1 keys — clean break.
@@ -78,7 +78,11 @@ def test_defaults_are_no_data():
     # Non-reading fields have real defaults.
     assert d["volume"]["units"] == "units"
     assert d["units"]["length"] == "inch"
-    assert d["alerts"] == {"unexpected_flow": False, "low_flow": False}
+    assert d["alerts"] == {
+        "unexpected_flow": False,
+        "low_flow": False,
+        "low_tank_time": False,
+    }
     assert d["system"]["status"] == "running"
 
 
@@ -103,7 +107,11 @@ def test_update_from_dict_round_trip():
         "capacity": {"value": 100000.0, "units": "L"},
     }
     assert d["units"] == {"length": "inch"}
-    assert d["alerts"] == {"unexpected_flow": False, "low_flow": True}
+    assert d["alerts"] == {
+        "unexpected_flow": False,
+        "low_flow": True,
+        "low_tank_time": True,
+    }
     assert d["system"]["status"] == "running"
 
 
@@ -140,6 +148,22 @@ def test_explicit_none_clears_reading():
     assert d["flow"]["units"] == "GPD"
     assert d["flow"]["high_alarm"] == 63.3
     assert d["pumps"]["pump_2"]["on"] is False
+
+
+def test_low_tank_time_alert_updates_independently():
+    """The low_tank_time flag round-trips and toggles without disturbing siblings."""
+    data = DashboardData()
+    data.update_from_dict(FULL_UPDATE)
+    assert data.to_dict()["alerts"]["low_tank_time"] is True
+
+    # Clearing just this flag leaves the other two alerts untouched.
+    data.update_from_dict({"alerts": {"low_tank_time": False}})
+    alerts = data.to_dict()["alerts"]
+    assert alerts == {
+        "unexpected_flow": False,
+        "low_flow": True,
+        "low_tank_time": False,
+    }
 
 
 def test_absent_keys_keep_current_values():

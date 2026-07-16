@@ -29,7 +29,7 @@ function nominalFixture() {
             capacity: { value: 100000, units: "L" },
         },
         units: { length: "inch" },
-        alerts: { unexpected_flow: false, low_flow: false },
+        alerts: { unexpected_flow: false, low_flow: false, low_tank_time: false },
         system: { timestamp: new Date().toISOString(), status: "running" },
     };
 }
@@ -47,7 +47,7 @@ function nullFixture() {
             capacity: { value: null, units: null },
         },
         units: { length: "inch" },
-        alerts: { unexpected_flow: false, low_flow: false },
+        alerts: { unexpected_flow: false, low_flow: false, low_tank_time: false },
         system: { timestamp: new Date().toISOString(), status: "running" },
     };
 }
@@ -112,6 +112,7 @@ class DashboardShell {
     //   nulls             — inject the all-null fixture (placeholder check)
     //   toggle-unexpected — toggle alerts.unexpected_flow on the shown data
     //   toggle-low        — toggle alerts.low_flow on the shown data
+    //   toggle-tank       — toggle alerts.low_tank_time on the shown data
     //   clear             — drop the override, back to live server data
 
     setupDevToolbar() {
@@ -132,15 +133,23 @@ class DashboardShell {
                 this.devData = nullFixture();
                 break;
             case "toggle-unexpected":
-            case "toggle-low": {
-                // Toggle on top of whatever is currently displayed
+            case "toggle-low":
+            case "toggle-tank": {
+                // Toggle one alert flag on top of whatever is currently displayed
+                const flagByKind = {
+                    "toggle-unexpected": "unexpected_flow",
+                    "toggle-low": "low_flow",
+                    "toggle-tank": "low_tank_time",
+                };
+                const flag = flagByKind[kind];
                 const base = this.devData || this.serverData || nominalFixture();
-                const alerts = { unexpected_flow: false, low_flow: false, ...(base.alerts || {}) };
-                if (kind === "toggle-unexpected") {
-                    alerts.unexpected_flow = !alerts.unexpected_flow;
-                } else {
-                    alerts.low_flow = !alerts.low_flow;
-                }
+                const alerts = {
+                    unexpected_flow: false,
+                    low_flow: false,
+                    low_tank_time: false,
+                    ...(base.alerts || {}),
+                };
+                alerts[flag] = !alerts[flag];
                 this.devData = { ...base, alerts };
                 break;
             }

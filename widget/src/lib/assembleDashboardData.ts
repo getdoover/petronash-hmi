@@ -189,6 +189,7 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
     alerts: {
       unexpected_flow: pumpTags.unexpected_flow_alert === true,
       low_flow: pumpTags.low_flow_alert === true,
+      low_tank_time: pumpTags.low_tank_time_alert === true,
     },
     system: {
       timestamp: new Date(inputs.lastUpdated ?? Date.now()).toISOString(),

@@ -84,6 +84,7 @@ class DashboardData:
         # Alerts (from the pump controller app; plain booleans, not "no data")
         self.unexpected_flow_alert: bool = False
         self.low_flow_alert: bool = False
+        self.low_tank_time_alert: bool = False
 
         # System data
         self.timestamp: datetime = datetime.now(timezone.utc)
@@ -125,6 +126,7 @@ class DashboardData:
             "alerts": {
                 "unexpected_flow": self.unexpected_flow_alert,
                 "low_flow": self.low_flow_alert,
+                "low_tank_time": self.low_tank_time_alert,
             },
             "system": {
                 "timestamp": self.timestamp.isoformat(),
@@ -196,6 +198,8 @@ class DashboardData:
                 self.unexpected_flow_alert = bool(alerts["unexpected_flow"])
             if "low_flow" in alerts:
                 self.low_flow_alert = bool(alerts["low_flow"])
+            if "low_tank_time" in alerts:
+                self.low_tank_time_alert = bool(alerts["low_tank_time"])
 
         if "system" in data and isinstance(data["system"], dict):
             system = data["system"]

@@ -49,13 +49,14 @@
     </div>
 
     {% if dev_mode %}
-    <!-- Dev-only toolbar: inject v2 fixture data / toggle the two alert flags -->
+    <!-- Dev-only toolbar: inject v2 fixture data / toggle the alert flags -->
     <div id="dev-toolbar" class="dev-toolbar">
         <span class="dev-toolbar-label"><i class="fas fa-flask"></i> Dev</span>
         <button type="button" class="dev-btn" data-dev="fixture">Fixture Data</button>
         <button type="button" class="dev-btn" data-dev="nulls">Null Data</button>
         <button type="button" class="dev-btn" data-dev="toggle-unexpected">Unexpected Flow</button>
         <button type="button" class="dev-btn" data-dev="toggle-low">Low Flow</button>
+        <button type="button" class="dev-btn" data-dev="toggle-tank">Low Tank</button>
         <button type="button" class="dev-btn dev-btn-clear" data-dev="clear">Clear</button>
     </div>
     {% endif %}

@@ -27,7 +27,11 @@ export interface DashboardDataV2 {
     capacity: { value: number | null; units: string | null };
   };
   units: { length: "inch" | "mm" };
-  alerts: { unexpected_flow: boolean; low_flow: boolean };
+  alerts: {
+    unexpected_flow: boolean;
+    low_flow: boolean;
+    low_tank_time: boolean;
+  };
   system: { timestamp: string; status: string };
 }
 
@@ -38,9 +42,20 @@ export interface HmiHandle {
   destroy(): void;
 }
 
+export interface CreateHmiOptions {
+  /**
+   * How the alert window is presented.
+   * - "overlay" (default, local panel): floats over the tiles on the z-axis,
+   *   dimming them.
+   * - "inline" (cloud widget): a banner stacked above the tiles on the y-axis,
+   *   pushing them down rather than covering them.
+   */
+  alertLayout?: "overlay" | "inline";
+}
+
 export function createHmi(
   rootEl: HTMLElement,
-  opts?: Record<string, unknown>,
+  opts?: CreateHmiOptions,
 ): HmiHandle;
 
 /**

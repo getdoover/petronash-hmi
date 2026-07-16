@@ -69,7 +69,10 @@ function PetronashHmiInner({ uiElement }: { uiElement?: UiRemoteComponent }) {
     if (!rootRef.current) {
       return;
     }
-    hmiRef.current = createHmi(rootRef.current);
+    // Cloud widget: the alert window stacks above the tiles (y-axis banner)
+    // rather than overlaying them, so it never covers content in the host UI's
+    // variable-height column. The local panel keeps the default z-axis overlay.
+    hmiRef.current = createHmi(rootRef.current, { alertLayout: "inline" });
     return () => {
       hmiRef.current?.destroy();
       hmiRef.current = null;

@@ -285,6 +285,25 @@
     margin: 0;
 }
 
+/* Inline alert layout (cloud widget, createHmi opts.alertLayout: "inline").
+   The popover becomes a full-width banner in normal flow, so it stacks ABOVE
+   the tiles on the y-axis and pushes them down rather than floating over them
+   on the z-axis. No dim backdrop is appended in this mode. */
+.hmi-root.hmi-alert-inline .hmi-alert-popover {
+    position: static;
+    transform: none;
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 clamp(10px, 2vw, 20px) 0;
+}
+
+.hmi-root.hmi-alert-inline .hmi-alert-popover.hidden {
+    display: none;
+    transform: none;
+}
+
 /* Animations */
 @keyframes hmi-slide-in {
     from {

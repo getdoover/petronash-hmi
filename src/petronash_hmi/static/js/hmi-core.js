@@ -18,7 +18,8 @@
  *   "tank":     { "percent": 48.8|null, "level_mm": 19030.0|null,
  *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null } },
  *   "units":    { "length": "inch"|"mm" },
- *   "alerts":   { "unexpected_flow": false, "low_flow": false },
+ *   "alerts":   { "unexpected_flow": false, "low_flow": false,
+ *                 "low_tank_time": false },
  *   "system":   { "timestamp": "<iso>", "status": "running" }
  * }
  *
@@ -205,12 +206,22 @@ function section(extraClass, heading, ...children) {
  * Create the HMI inside rootEl.
  *
  * @param {HTMLElement} rootEl - container the HMI is built into (emptied first)
- * @param {object} [opts] - reserved for future shell-specific options
+ * @param {object} [opts]
+ * @param {"overlay"|"inline"} [opts.alertLayout="overlay"] - how the alert
+ *   window is presented. "overlay" (local panel): floats over the tiles on the
+ *   z-axis, dimming them. "inline" (cloud widget): a banner stacked ABOVE the
+ *   tiles on the y-axis, pushing them down rather than covering them, so it
+ *   never obscures content in the host UI's variable-height column.
  * @returns {{update: (data: object|null|undefined) => void, destroy: () => void}}
  */
-export function createHmi(rootEl, _opts = {}) {
+export function createHmi(rootEl, opts = {}) {
     rootEl.innerHTML = "";
     rootEl.classList.add("hmi-root");
+
+    const inlineAlert = opts.alertLayout === "inline";
+    if (inlineAlert) {
+        rootEl.classList.add("hmi-alert-inline");
+    }
 
     // ---- Pumps tile: both pump states stacked in one card ---------------
     const pumpStates = [1, 2].map((n) => {
@@ -275,7 +286,13 @@ export function createHmi(rootEl, _opts = {}) {
     );
     alertPopover.append(alertContent);
 
-    rootEl.append(grid, alertDim, alertPopover);
+    // Inline: banner above the tiles (no dim backdrop). Overlay: dim + popover
+    // layered over the grid. See opts.alertLayout in the createHmi docstring.
+    if (inlineAlert) {
+        rootEl.append(alertPopover, grid);
+    } else {
+        rootEl.append(grid, alertDim, alertPopover);
+    }
 
     // ---- Render ----------------------------------------------------------
 
@@ -327,6 +344,9 @@ export function createHmi(rootEl, _opts = {}) {
         }
         if (alerts && alerts.low_flow === true) {
             messages.push("Low Flow — low flow or pressure while a pump is running");
+        }
+        if (alerts && alerts.low_tank_time === true) {
+            messages.push("Low Tank — storage tank predicted to empty soon at the current flow");
         }
 
         alertList.innerHTML = "";
