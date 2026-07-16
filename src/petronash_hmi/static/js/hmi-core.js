@@ -241,7 +241,7 @@ export function createHmi(rootEl, opts = {}) {
 
     // Per-segment running total; its title tracks the selected segment name.
     const segmentVolume = valueDisplay("");
-    const segmentVolumeTitle = el("h3", "", "Segment Volume Pumped");
+    const segmentVolumeTitle = el("h3", "", "Pipeline Volume Pumped");
     const segmentVolumeCard = el("div", "control-card");
     segmentVolumeCard.append(segmentVolumeTitle, segmentVolume.root);
 
@@ -401,7 +401,7 @@ export function createHmi(rootEl, opts = {}) {
         pipeline.value.textContent = segmentName || PLACEHOLDER;
         segmentVolumeTitle.textContent = segmentName
             ? `${segmentName} Volume Pumped`
-            : "Segment Volume Pumped";
+            : "Pipeline Volume Pumped";
 
         const pressureData = data.pressure || {};
         pressure.value.textContent = fmtNumber(pressureData.value);
