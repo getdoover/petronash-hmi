@@ -22,7 +22,8 @@ function nominalFixture() {
         pumps: { pump_1: { on: true }, pump_2: { on: false } },
         pressure: { value: 3.2, units: "PSI", high_alarm: 1500.0 },
         flow: { value: 48.6, units: "GPD", high_alarm: 63.3, low_alarm: 34.2 },
-        volume: { total: 58213.0, units: "gal" },
+        volume: { total: 58213.0, segment_total: 12840.0, units: "gal" },
+        segment: { name: "Pipeline A" },
         tank: {
             percent: 48.8,
             level_mm: 19030.0,
@@ -40,7 +41,8 @@ function nullFixture() {
         pumps: { pump_1: { on: null }, pump_2: { on: null } },
         pressure: { value: null, units: "PSI", high_alarm: null },
         flow: { value: null, units: "GPD", high_alarm: null, low_alarm: null },
-        volume: { total: null, units: "gal" },
+        volume: { total: null, segment_total: null, units: "gal" },
+        segment: { name: null },
         tank: {
             percent: null,
             level_mm: null,

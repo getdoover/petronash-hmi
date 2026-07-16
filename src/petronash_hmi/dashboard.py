@@ -66,9 +66,16 @@ class DashboardData:
         self.flow_high_alarm: Optional[float] = None
         self.flow_low_alarm: Optional[float] = None
 
-        # Volume totaliser (from the pump controller app)
+        # Volume totaliser (from the pump controller app). volume_total is the
+        # grand total across all segments; volume_segment_total is the running
+        # total for the currently-selected segment ("pipeline").
         self.volume_total: Optional[float] = None
+        self.volume_segment_total: Optional[float] = None
         self.volume_units: str = "units"
+
+        # Currently-selected segment ("pipeline") name, from the pump
+        # controller (which mirrors the segmenter app's selection).
+        self.segment_name: Optional[str] = None
 
         # Tank level
         self.tank_percent: Optional[float] = None
@@ -110,7 +117,11 @@ class DashboardData:
             },
             "volume": {
                 "total": self.volume_total,
+                "segment_total": self.volume_segment_total,
                 "units": self.volume_units,
+            },
+            "segment": {
+                "name": self.segment_name,
             },
             "tank": {
                 "percent": self.tank_percent,
@@ -171,8 +182,14 @@ class DashboardData:
             volume = data["volume"]
             if "total" in volume:
                 self.volume_total = _opt_float(volume["total"])
+            if "segment_total" in volume:
+                self.volume_segment_total = _opt_float(volume["segment_total"])
             if "units" in volume and volume["units"] is not None:
                 self.volume_units = str(volume["units"])
+
+        if "segment" in data and isinstance(data["segment"], dict):
+            if "name" in data["segment"]:
+                self.segment_name = _opt_str(data["segment"]["name"])
 
         if "tank" in data and isinstance(data["tank"], dict):
             tank = data["tank"]

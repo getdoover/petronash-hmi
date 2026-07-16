@@ -238,7 +238,15 @@ class PetronashHmiApplication(Application):
             },
             "volume": {
                 "total": self.get_tag("total_volume", app_key=pump_app, default=None),
+                "segment_total": self.get_tag(
+                    "selected_segment_volume", app_key=pump_app, default=None
+                ),
                 "units": volume_units_from_flow_units(flow_units),
+            },
+            "segment": {
+                "name": self.get_tag(
+                    "selected_segment_name", app_key=pump_app, default=None
+                ),
             },
             "tank": {
                 "percent": tank_percent,

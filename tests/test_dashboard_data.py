@@ -7,7 +7,8 @@ FULL_UPDATE = {
     "pumps": {"pump_1": {"on": True}, "pump_2": {"on": False}},
     "pressure": {"value": 3.2, "units": "PSI", "high_alarm": None},
     "flow": {"value": 42.7, "units": "GPD", "high_alarm": 63.3, "low_alarm": 34.2},
-    "volume": {"total": 58213.0, "units": "gal"},
+    "volume": {"total": 58213.0, "segment_total": 12840.0, "units": "gal"},
+    "segment": {"name": "Pipeline A"},
     "tank": {
         "percent": 48.8,
         "level_mm": 19030.0,
@@ -28,6 +29,7 @@ def test_to_dict_v2_shape():
         "pressure",
         "flow",
         "volume",
+        "segment",
         "tank",
         "units",
         "alerts",
@@ -38,7 +40,8 @@ def test_to_dict_v2_shape():
     assert set(d["pumps"]["pump_2"]) == {"on"}
     assert set(d["pressure"]) == {"value", "units", "high_alarm"}
     assert set(d["flow"]) == {"value", "units", "high_alarm", "low_alarm"}
-    assert set(d["volume"]) == {"total", "units"}
+    assert set(d["volume"]) == {"total", "segment_total", "units"}
+    assert set(d["segment"]) == {"name"}
     assert set(d["tank"]) == {"percent", "level_mm", "capacity"}
     assert set(d["tank"]["capacity"]) == {"value", "units"}
     assert set(d["units"]) == {"length"}
@@ -72,6 +75,8 @@ def test_defaults_are_no_data():
     assert d["flow"]["high_alarm"] is None
     assert d["flow"]["low_alarm"] is None
     assert d["volume"]["total"] is None
+    assert d["volume"]["segment_total"] is None
+    assert d["segment"]["name"] is None
     assert d["tank"]["percent"] is None
     assert d["tank"]["level_mm"] is None
     assert d["tank"]["capacity"] == {"value": None, "units": None}
@@ -100,7 +105,12 @@ def test_update_from_dict_round_trip():
         "high_alarm": 63.3,
         "low_alarm": 34.2,
     }
-    assert d["volume"] == {"total": 58213.0, "units": "gal"}
+    assert d["volume"] == {
+        "total": 58213.0,
+        "segment_total": 12840.0,
+        "units": "gal",
+    }
+    assert d["segment"] == {"name": "Pipeline A"}
     assert d["tank"] == {
         "percent": 48.8,
         "level_mm": 19030.0,
@@ -148,6 +158,34 @@ def test_explicit_none_clears_reading():
     assert d["flow"]["units"] == "GPD"
     assert d["flow"]["high_alarm"] == 63.3
     assert d["pumps"]["pump_2"]["on"] is False
+
+
+def test_segment_and_volumes_update():
+    """Segment name + both volume totals round-trip and clear to 'no data'."""
+    data = DashboardData()
+    data.update_from_dict(FULL_UPDATE)
+    d = data.to_dict()
+    assert d["segment"]["name"] == "Pipeline A"
+    assert d["volume"]["total"] == 58213.0
+    assert d["volume"]["segment_total"] == 12840.0
+
+    # A segment switch: name changes, per-segment total resets to that
+    # segment's running value; the grand total is untouched by this update.
+    data.update_from_dict(
+        {"segment": {"name": "Pipeline B"}, "volume": {"segment_total": 300.0}}
+    )
+    d = data.to_dict()
+    assert d["segment"]["name"] == "Pipeline B"
+    assert d["volume"]["segment_total"] == 300.0
+    assert d["volume"]["total"] == 58213.0
+
+    # Explicit None clears to "no data" (renders as em-dash, never 0).
+    data.update_from_dict(
+        {"segment": {"name": None}, "volume": {"segment_total": None}}
+    )
+    d = data.to_dict()
+    assert d["segment"]["name"] is None
+    assert d["volume"]["segment_total"] is None
 
 
 def test_low_tank_time_alert_updates_independently():

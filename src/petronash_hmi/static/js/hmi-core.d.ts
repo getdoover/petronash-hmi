@@ -20,7 +20,12 @@ export interface DashboardDataV2 {
     high_alarm: number | null;
     low_alarm: number | null;
   };
-  volume: { total: number | null; units: string };
+  volume: {
+    total: number | null;
+    segment_total: number | null;
+    units: string;
+  };
+  segment: { name: string | null };
   tank: {
     percent: number | null;
     level_mm: number | null;

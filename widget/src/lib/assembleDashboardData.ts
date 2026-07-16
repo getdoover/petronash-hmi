@@ -172,7 +172,11 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
     },
     volume: {
       total: asNumber(pumpTags.total_volume),
+      segment_total: asNumber(pumpTags.selected_segment_volume),
       units: volumeUnits(flowUnits),
+    },
+    segment: {
+      name: asString(pumpTags.selected_segment_name),
     },
     tank: {
       percent: asNumber(tankTags.level_filled_percentage),

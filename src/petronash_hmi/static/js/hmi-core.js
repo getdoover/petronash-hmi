@@ -14,7 +14,9 @@
  *   "pressure": { "value": 3.2|null, "units": "PSI", "high_alarm": 1500.0|null },
  *   "flow":     { "value": 26.4|null, "units": "GPD",
  *                 "high_alarm": 63.3|null, "low_alarm": 34.2|null },
- *   "volume":   { "total": 58213.0|null, "units": "gal" },
+ *   "volume":   { "total": 58213.0|null, "segment_total": 12840.0|null,
+ *                 "units": "gal" },
+ *   "segment":  { "name": "Pipeline A"|null },
  *   "tank":     { "percent": 48.8|null, "level_mm": 19030.0|null,
  *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null } },
  *   "units":    { "length": "inch"|"mm" },
@@ -223,18 +225,41 @@ export function createHmi(rootEl, opts = {}) {
         rootEl.classList.add("hmi-alert-inline");
     }
 
-    // ---- Pumps tile: both pump states stacked in one card ---------------
+    // ---- Pumps tile: pump states, selected pipeline, then the volume
+    // totals (this segment's, then the grand total across all pipelines) -----
     const pumpStates = [1, 2].map((n) => {
         const display = el("div", "state-display");
         const value = el("span", "state-value unknown", PLACEHOLDER);
         display.append(value);
         return { value, card: card(`Pump ${n} State`, display) };
     });
+
+    // Pipeline: the currently-selected segment name (segment.name).
+    const pipeline = valueDisplay("");
+    pipeline.value.classList.add("pipeline-value");
+    const pipelineCard = card("Pipeline", pipeline.root);
+
+    // Per-segment running total; its title tracks the selected segment name.
+    const segmentVolume = valueDisplay("");
+    const segmentVolumeTitle = el("h3", "", "Segment Volume Pumped");
+    const segmentVolumeCard = el("div", "control-card");
+    segmentVolumeCard.append(segmentVolumeTitle, segmentVolume.root);
+
+    // Grand total across all pipelines (volume.total). Moved here from Skid.
+    const volume = valueDisplay("");
+    const volumeCard = card("Total Volume Pumped", volume.root);
+
     const pumpGrid = el("div", "controls-grid controls-grid-vertical");
-    pumpGrid.append(pumpStates[0].card, pumpStates[1].card);
+    pumpGrid.append(
+        pumpStates[0].card,
+        pumpStates[1].card,
+        pipelineCard,
+        segmentVolumeCard,
+        volumeCard,
+    );
     const pumpSection = section("pump-section", "Pumps", pumpGrid);
 
-    // ---- Skid column: shared pressure, flow, total volume --------------
+    // ---- Skid column: shared pressure, flow ----------------------------
     const pressure = valueDisplay("");
     const pressureHigh = alarmLevel("High Alarm:", "");
     const pressureCard = card("Pressure", pressure.root, pressureHigh.root);
@@ -244,11 +269,8 @@ export function createHmi(rootEl, opts = {}) {
     const flowLow = alarmLevel("Low Alarm:", "");
     const flowCard = card("Flow", flow.root, flowHigh.root, flowLow.root);
 
-    const volume = valueDisplay("");
-    const volumeCard = card("Total Volume Pumped", volume.root);
-
     const skidGrid = el("div", "controls-grid controls-grid-vertical");
-    skidGrid.append(pressureCard, flowCard, volumeCard);
+    skidGrid.append(pressureCard, flowCard);
     const skidSection = section("skid-section", "Skid", skidGrid);
 
     // ---- Tank tile ------------------------------------------------------
@@ -370,6 +392,17 @@ export function createHmi(rootEl, opts = {}) {
         renderPumpState(pumpStates[0].value, data.pumps ? data.pumps.pump_1 : null);
         renderPumpState(pumpStates[1].value, data.pumps ? data.pumps.pump_2 : null);
 
+        // Selected pipeline: name in its own tile, and used to title the
+        // per-segment volume tile ("<name> Volume Pumped").
+        const segmentName =
+            data.segment && typeof data.segment.name === "string" && data.segment.name
+                ? data.segment.name
+                : null;
+        pipeline.value.textContent = segmentName || PLACEHOLDER;
+        segmentVolumeTitle.textContent = segmentName
+            ? `${segmentName} Volume Pumped`
+            : "Segment Volume Pumped";
+
         const pressureData = data.pressure || {};
         pressure.value.textContent = fmtNumber(pressureData.value);
         pressure.unit.textContent = pressureData.units || "";
@@ -385,6 +418,8 @@ export function createHmi(rootEl, opts = {}) {
         flowLow.unit.textContent = flowData.units || "";
 
         const volumeData = data.volume || {};
+        segmentVolume.value.textContent = fmtNumber(volumeData.segment_total);
+        segmentVolume.unit.textContent = volumeData.units || "";
         volume.value.textContent = fmtNumber(volumeData.total);
         volume.unit.textContent = volumeData.units || "";
 
