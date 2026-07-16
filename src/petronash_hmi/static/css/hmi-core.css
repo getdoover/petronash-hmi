@@ -88,14 +88,6 @@
     font-weight: 500;
 }
 
-/* Pipeline (selected segment) name — text, not a number, so a touch smaller
-   than the big numeric readouts and free to wrap. */
-.hmi-root .value.pipeline-value {
-    font-size: clamp(1rem, 2.8vw, 1.4rem);
-    text-align: center;
-    word-break: break-word;
-}
-
 /* Alarm setpoint readouts (shown under the relevant value) */
 .hmi-root .alarm-level {
     margin-top: clamp(4px, 0.8vh, 8px);

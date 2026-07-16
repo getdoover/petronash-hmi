@@ -234,12 +234,8 @@ export function createHmi(rootEl, opts = {}) {
         return { value, card: card(`Pump ${n} State`, display) };
     });
 
-    // Pipeline: the currently-selected segment name (segment.name).
-    const pipeline = valueDisplay("");
-    pipeline.value.classList.add("pipeline-value");
-    const pipelineCard = card("Pipeline", pipeline.root);
-
-    // Per-segment running total; its title tracks the selected segment name.
+    // Per-segment running total; its title names the selected pipeline
+    // ("<name> Volume Pumped"), so no separate pipeline-name tile is needed.
     const segmentVolume = valueDisplay("");
     const segmentVolumeTitle = el("h3", "", "Pipeline Volume Pumped");
     const segmentVolumeCard = el("div", "control-card");
@@ -253,7 +249,6 @@ export function createHmi(rootEl, opts = {}) {
     pumpGrid.append(
         pumpStates[0].card,
         pumpStates[1].card,
-        pipelineCard,
         segmentVolumeCard,
         volumeCard,
     );
@@ -392,13 +387,12 @@ export function createHmi(rootEl, opts = {}) {
         renderPumpState(pumpStates[0].value, data.pumps ? data.pumps.pump_1 : null);
         renderPumpState(pumpStates[1].value, data.pumps ? data.pumps.pump_2 : null);
 
-        // Selected pipeline: name in its own tile, and used to title the
-        // per-segment volume tile ("<name> Volume Pumped").
+        // Selected pipeline name titles the per-segment volume tile
+        // ("<name> Volume Pumped").
         const segmentName =
             data.segment && typeof data.segment.name === "string" && data.segment.name
                 ? data.segment.name
                 : null;
-        pipeline.value.textContent = segmentName || PLACEHOLDER;
         segmentVolumeTitle.textContent = segmentName
             ? `${segmentName} Volume Pumped`
             : "Pipeline Volume Pumped";
