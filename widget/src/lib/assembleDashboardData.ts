@@ -74,14 +74,27 @@ function asString(value: unknown): string | null {
  * "no setpoint" (null), never 0. Stale sibling keys (e.g. a hidden
  * alarm_point next to an active alarm_range) are ignored.
  */
+/**
+ * A sensor's configured alarm type, or null when it has none / is disabled.
+ * The 4-20mA apps nest alarm config under an `alarm` object; the analog level
+ * sensor keeps it flat at the config root. Mirrors alarm_type_from_app_config()
+ * in application.py.
+ */
+export function resolveAlarmType(sensorConfig: JsonRecord): string | null {
+  const alarmBlock =
+    "alarm" in sensorConfig ? asRecord(sensorConfig.alarm) : sensorConfig;
+  if (alarmBlock.alarm_enabled === false) {
+    return null;
+  }
+  return asString(alarmBlock.alarm_type);
+}
+
 export function resolveAlarmSetpoints(
   sensorConfig: JsonRecord,
   sensorCmds: JsonRecord,
 ): { high: number | null; low: number | null } {
-  const alarmBlock =
-    "alarm" in sensorConfig ? asRecord(sensorConfig.alarm) : sensorConfig;
-  const alarmType = asString(alarmBlock.alarm_type);
-  if (alarmBlock.alarm_enabled === false) {
+  const alarmType = resolveAlarmType(sensorConfig);
+  if (alarmType === null) {
     return { high: null, low: null };
   }
 
@@ -117,6 +130,25 @@ export function volumeUnits(flowUnits: string): string {
 
 const MM_PER_METRE = 1000;
 const MM_PER_INCH = 25.4;
+
+/**
+ * Which of the tank's alarm bounds the config arms: [low, high].
+ *
+ * Only the bounds the sensor's alarm_type puts in play are rendered — a
+ * "Greater Than" alarm has no low bound, so an empty "Low Alarm" row would
+ * imply a setpoint that cannot exist. Separate from whether a bound has a
+ * value: an armed-but-never-dragged bound still shows, with an em-dash.
+ * Mirrors tank_alarm_active() in application.py.
+ */
+export function tankAlarmActive(alarmType: string | null): {
+  low: boolean;
+  high: boolean;
+} {
+  if (alarmType === "Allowed Range") return { low: true, high: true };
+  if (alarmType === "Less Than") return { low: true, high: false };
+  if (alarmType === "Greater Than") return { low: false, high: true };
+  return { low: false, high: false };
+}
 
 /**
  * Render the level sensor's alarm setpoint(s) as a display value + unit.
@@ -200,6 +232,7 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
     asString(tankConfig.volume_units),
     lengthUnit,
   );
+  const tankActive = tankAlarmActive(resolveAlarmType(tankConfig));
 
   return {
     pumps: {
@@ -238,6 +271,8 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
       high_alarm: tankAlarm.high,
       low_alarm: tankAlarm.low,
       alarm_units: tankAlarm.units,
+      high_alarm_active: tankActive.high,
+      low_alarm_active: tankActive.low,
     },
     units: { length: lengthUnit },
     alerts: {

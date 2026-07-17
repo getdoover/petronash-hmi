@@ -89,6 +89,10 @@ class DashboardData:
         self.tank_high_alarm: Optional[float] = None
         self.tank_low_alarm: Optional[float] = None
         self.tank_alarm_units: Optional[str] = None
+        # Which bounds the sensor's alarm_type arms — a "Greater Than" alarm
+        # has no low bound, so its row is not rendered at all.
+        self.tank_high_alarm_active: bool = False
+        self.tank_low_alarm_active: bool = False
 
         # Display units ("mm" or "inch") for length readings; defaults to inches
         self.length_unit: str = "inch"
@@ -138,6 +142,8 @@ class DashboardData:
                 "high_alarm": self.tank_high_alarm,
                 "low_alarm": self.tank_low_alarm,
                 "alarm_units": self.tank_alarm_units,
+                "high_alarm_active": self.tank_high_alarm_active,
+                "low_alarm_active": self.tank_low_alarm_active,
             },
             "units": {
                 "length": self.length_unit,
@@ -217,6 +223,10 @@ class DashboardData:
                 self.tank_low_alarm = _opt_float(tank["low_alarm"])
             if "alarm_units" in tank:
                 self.tank_alarm_units = _opt_str(tank["alarm_units"])
+            if "high_alarm_active" in tank:
+                self.tank_high_alarm_active = bool(tank["high_alarm_active"])
+            if "low_alarm_active" in tank:
+                self.tank_low_alarm_active = bool(tank["low_alarm_active"])
 
         if "units" in data and isinstance(data["units"], dict):
             units = data["units"]

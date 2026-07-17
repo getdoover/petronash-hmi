@@ -24,13 +24,18 @@
     align-items: stretch;
 }
 
-/* Column sections */
+/* Column sections. The grid stretches them all to the tallest, and each lays
+   its heading + inner stack out as a column so the stack can claim the rest of
+   the height (see .controls-grid / .tank-gauge-wrap below). That is what makes
+   the three tiles' contents line up regardless of which one is tallest. */
 .hmi-root .control-section {
     background: rgba(255, 255, 255, 0.95);
     border-radius: clamp(8px, 1.5vw, 15px);
     padding: clamp(12px, 2vw, 20px);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
 }
 
 .hmi-root .control-section h2 {
@@ -42,14 +47,18 @@
     border-bottom: 2px solid #ecf0f1;
 }
 
-/* Card stacks inside a column */
+/* Card stacks inside a column. The stack fills the height left under the
+   heading, and its rows share that height equally — so the three inner cards
+   of Pumps/Skid each get a third and line up across the tiles. */
 .hmi-root .controls-grid {
     display: grid;
     gap: clamp(8px, 1.5vw, 15px);
+    flex: 1;
 }
 
 .hmi-root .controls-grid.controls-grid-vertical {
     grid-template-columns: 1fr;
+    grid-auto-rows: 1fr;
 }
 
 /* Cards */
@@ -131,16 +140,21 @@
 .hmi-root .state-value.unknown { background: #ecf0f1; color: #7f8c8d; }
 
 /* Vertical tank level gauge */
+/* Fills the height left under the heading, so the gauge (a stretched flex
+   child) grows to match whatever the tallest tile sets, rather than sitting at
+   a fixed height with dead space beneath it. */
 .hmi-root .tank-gauge-wrap {
     display: flex;
     gap: clamp(12px, 2vw, 24px);
     align-items: stretch;
     padding: clamp(8px, 1.5vw, 15px) clamp(4px, 1vw, 10px);
+    flex: 1;
 }
 
 .hmi-root .tank-gauge {
     position: relative;
     width: clamp(56px, 7vw, 90px);
+    /* A floor only — align-items:stretch above lets it fill the wrap. */
     min-height: clamp(160px, 28vh, 300px);
     flex-shrink: 0;
     background: #ecf0f1;

@@ -36,6 +36,10 @@ export interface DashboardDataV2 {
     /** Units of the alarm setpoint — the level sensor's alarm_source decides
      *  whether that is a percentage, a volume or a length. */
     alarm_units: string | null;
+    /** Which bounds the sensor's alarm_type arms; only these are rendered. An
+     *  armed-but-never-dragged bound is active with a null value (em-dash). */
+    high_alarm_active: boolean;
+    low_alarm_active: boolean;
   };
   units: { length: "inch" | "mm" };
   alerts: {

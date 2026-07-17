@@ -94,6 +94,24 @@ _MM_PER_METRE = 1000.0
 _MM_PER_INCH = 25.4
 
 
+def tank_alarm_active(alarm_type: Optional[str]) -> Tuple[bool, bool]:
+    """Which of the tank's alarm bounds the config actually arms: (low, high).
+
+    Only the bounds the sensor's ``alarm_type`` puts in play are rendered — a
+    "Greater Than" alarm has no low bound at all, so showing an empty "Low
+    Alarm" row would imply a setpoint that cannot exist. This is separate from
+    whether a setpoint has a *value*: a bound can be armed but never dragged
+    (no ui_cmds entry), which still shows the row, with an em-dash.
+    """
+    if alarm_type == "Allowed Range":
+        return True, True
+    if alarm_type == "Less Than":
+        return True, False
+    if alarm_type == "Greater Than":
+        return False, True
+    return False, False
+
+
 def tank_alarm_display(
     low: Optional[float],
     high: Optional[float],
@@ -265,8 +283,9 @@ class PetronashHmiApplication(Application):
         flow_units = self._measurement_units.get(flow_app)
         length_unit = "inch" if "Inch" in str(self.config.display_units.value) else "mm"
 
+        tank_alarm_type = self._alarm_types.get(tank_app)
         tank_low, tank_high = resolve_alarm_setpoint(
-            self._ui_cmds_data, tank_app, self._alarm_types.get(tank_app)
+            self._ui_cmds_data, tank_app, tank_alarm_type
         )
         tank_alarm_low, tank_alarm_high, tank_alarm_units = tank_alarm_display(
             tank_low,
@@ -275,6 +294,7 @@ class PetronashHmiApplication(Application):
             self._tank_capacity_units,
             length_unit,
         )
+        tank_low_active, tank_high_active = tank_alarm_active(tank_alarm_type)
 
         return {
             "pumps": {
@@ -318,6 +338,8 @@ class PetronashHmiApplication(Application):
                 "high_alarm": tank_alarm_high,
                 "low_alarm": tank_alarm_low,
                 "alarm_units": tank_alarm_units,
+                "high_alarm_active": tank_high_active,
+                "low_alarm_active": tank_low_active,
             },
             "units": {"length": length_unit},
             "alerts": {

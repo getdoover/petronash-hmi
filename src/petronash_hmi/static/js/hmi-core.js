@@ -20,7 +20,8 @@
  *   "tank":     { "percent": 48.8|null, "level_mm": 19030.0|null,
  *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null },
  *                 "high_alarm": 56.2|null, "low_alarm": null,
- *                 "alarm_units": "%"|"L"|"mm"|"\""|null },
+ *                 "alarm_units": "%"|"L"|"mm"|"\""|null,
+ *                 "high_alarm_active": true, "low_alarm_active": false },
  *   "units":    { "length": "inch"|"mm" },
  *   "alerts":   { "unexpected_flow": false, "low_flow": false,
  *                 "low_tank_time": false },
@@ -362,7 +363,15 @@ export function createHmi(rootEl, opts = {}) {
 
         tteValue.textContent = formatTimeToEmpty(tank || {}, flowData || {});
 
+        // Only the bounds the sensor's alarm_type actually arms are rendered:
+        // a "Greater Than" alarm has no low bound, so an empty "Low Alarm" row
+        // would imply a setpoint that cannot exist. An armed-but-never-dragged
+        // bound still shows, with the em-dash.
         const alarmUnits = (tank && tank.alarm_units) || "";
+        tankHigh.root.style.display =
+            tank && tank.high_alarm_active === true ? "" : "none";
+        tankLow.root.style.display =
+            tank && tank.low_alarm_active === true ? "" : "none";
         tankHigh.value.textContent = fmtNumber(tank ? tank.high_alarm : null);
         tankHigh.unit.textContent = alarmUnits;
         tankLow.value.textContent = fmtNumber(tank ? tank.low_alarm : null);
