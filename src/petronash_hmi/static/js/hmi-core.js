@@ -350,7 +350,9 @@ export function createHmi(rootEl, opts = {}) {
     function renderPumpState(target, pump) {
         const on = pump && typeof pump.on === "boolean" ? pump.on : null;
         if (on === true) {
-            target.textContent = "RUNNING";
+            // Wording matches the pump controller widget's own indicator
+            // ("Pumping"/"Stopped"; both stylesheets uppercase it).
+            target.textContent = "PUMPING";
             target.className = "state-value on";
         } else if (on === false) {
             target.textContent = "STOPPED";
