@@ -20,8 +20,14 @@ import { createHmi } from "./hmi-core.js";
 function nominalFixture() {
     return {
         pumps: { pump_1: { on: true }, pump_2: { on: false } },
-        pressure: { value: 3.2, units: "PSI", high_alarm: 1500.0 },
-        flow: { value: 48.6, units: "GPD", high_alarm: 63.3, low_alarm: 34.2 },
+        pressure: {
+            value: 3.2, units: "PSI", high_alarm: 1500.0, low_alarm: null,
+            high_alarm_active: true, low_alarm_active: false,
+        },
+        flow: {
+            value: 48.6, units: "GPD", high_alarm: 63.3, low_alarm: 34.2,
+            high_alarm_active: true, low_alarm_active: true,
+        },
         volume: { total: 58213.0, segment_total: 12840.0, units: "gal" },
         segment: { name: "Pipeline A" },
         tank: {
@@ -44,8 +50,14 @@ function nominalFixture() {
 function nullFixture() {
     return {
         pumps: { pump_1: { on: null }, pump_2: { on: null } },
-        pressure: { value: null, units: "PSI", high_alarm: null },
-        flow: { value: null, units: "GPD", high_alarm: null, low_alarm: null },
+        pressure: {
+            value: null, units: "PSI", high_alarm: null, low_alarm: null,
+            high_alarm_active: false, low_alarm_active: false,
+        },
+        flow: {
+            value: null, units: "GPD", high_alarm: null, low_alarm: null,
+            high_alarm_active: false, low_alarm_active: false,
+        },
         volume: { total: null, segment_total: null, units: "gal" },
         segment: { name: null },
         tank: {

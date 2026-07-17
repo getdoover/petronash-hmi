@@ -5,34 +5,37 @@ import pytest
 from petronash_hmi.application import (
     alarm_type_from_app_config,
     resolve_alarm_setpoint,
-    tank_alarm_active,
+    alarm_active,
     tank_alarm_display,
     volume_units_from_flow_units,
 )
 
 
-class TestTankAlarmActive:
-    """Only the bounds the configured alarm_type arms are rendered."""
+class TestAlarmActive:
+    """Only the bounds the configured alarm_type arms are rendered.
+
+    Applies to flow, pressure and tank alike.
+    """
 
     def test_allowed_range_arms_both(self):
-        assert tank_alarm_active("Allowed Range") == (True, True)
+        assert alarm_active("Allowed Range") == (True, True)
 
     def test_less_than_arms_only_low(self):
-        assert tank_alarm_active("Less Than") == (True, False)
+        assert alarm_active("Less Than") == (True, False)
 
     def test_greater_than_arms_only_high(self):
         # The live rig. A low row here would imply a bound that cannot exist.
-        assert tank_alarm_active("Greater Than") == (False, True)
+        assert alarm_active("Greater Than") == (False, True)
 
     def test_disabled_or_unknown_arms_neither(self):
         # alarm_type_from_app_config yields None when the alarm is disabled.
-        assert tank_alarm_active(None) == (False, False)
-        assert tank_alarm_active("Bogus") == (False, False)
+        assert alarm_active(None) == (False, False)
+        assert alarm_active("Bogus") == (False, False)
 
     def test_armed_bound_stays_armed_even_with_no_setpoint(self):
         # Activeness is about config, not whether the slider was ever dragged:
         # the row still shows (as an em-dash) when the value is None.
-        low_active, high_active = tank_alarm_active("Allowed Range")
+        low_active, high_active = alarm_active("Allowed Range")
         assert (low_active, high_active) == (True, True)
         assert tank_alarm_display(None, None, "Filled Percentage", "L", "inch") == (
             None,

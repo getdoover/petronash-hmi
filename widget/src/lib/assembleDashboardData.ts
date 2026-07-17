@@ -60,21 +60,6 @@ function asString(value: unknown): string | null {
 }
 
 /**
- * Resolve the active high/low alarm setpoints for one sensor app.
- *
- * Which ui_cmds key is authoritative depends on the sensor's configured
- * alarm_type (4-20mA apps nest it under an `alarm` object; the analog level
- * sensor keeps it flat):
- *   - "Allowed Range" -> `alarm_range` ([low, high] — sorted defensively,
- *     order is not guaranteed)
- *   - "Greater Than"  -> `alarm_point` is a HIGH alarm
- *   - "Less Than"     -> `alarm_point` is a LOW alarm
- *
- * A slider the operator has never moved has NO entry in ui_cmds — that means
- * "no setpoint" (null), never 0. Stale sibling keys (e.g. a hidden
- * alarm_point next to an active alarm_range) are ignored.
- */
-/**
  * A sensor's configured alarm type, or null when it has none / is disabled.
  * The 4-20mA apps nest alarm config under an `alarm` object; the analog level
  * sensor keeps it flat at the config root. Mirrors alarm_type_from_app_config()
@@ -89,6 +74,21 @@ export function resolveAlarmType(sensorConfig: JsonRecord): string | null {
   return asString(alarmBlock.alarm_type);
 }
 
+/**
+ * Resolve the active high/low alarm setpoints for one sensor app.
+ *
+ * Which ui_cmds key is authoritative depends on the sensor's configured
+ * alarm_type (4-20mA apps nest it under an `alarm` object; the analog level
+ * sensor keeps it flat):
+ *   - "Allowed Range" -> `alarm_range` ([low, high] — sorted defensively,
+ *     order is not guaranteed)
+ *   - "Greater Than"  -> `alarm_point` is a HIGH alarm
+ *   - "Less Than"     -> `alarm_point` is a LOW alarm
+ *
+ * A slider the operator has never moved has NO entry in ui_cmds — that means
+ * "no setpoint" (null), never 0. Stale sibling keys (e.g. a hidden
+ * alarm_point next to an active alarm_range) are ignored.
+ */
 export function resolveAlarmSetpoints(
   sensorConfig: JsonRecord,
   sensorCmds: JsonRecord,
@@ -132,15 +132,16 @@ const MM_PER_METRE = 1000;
 const MM_PER_INCH = 25.4;
 
 /**
- * Which of the tank's alarm bounds the config arms: [low, high].
+ * Which of a sensor's alarm bounds the config arms: { low, high }.
  *
  * Only the bounds the sensor's alarm_type puts in play are rendered — a
  * "Greater Than" alarm has no low bound, so an empty "Low Alarm" row would
  * imply a setpoint that cannot exist. Separate from whether a bound has a
  * value: an armed-but-never-dragged bound still shows, with an em-dash.
- * Mirrors tank_alarm_active() in application.py.
+ * Applies to flow, pressure and tank alike. Mirrors alarm_active() in
+ * application.py.
  */
-export function tankAlarmActive(alarmType: string | null): {
+export function alarmActive(alarmType: string | null): {
   low: boolean;
   high: boolean;
 } {
@@ -212,10 +213,12 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
   const pressureUnits = asString(pressureConfig.measurement_units) ?? "";
 
   const flowAlarms = resolveAlarmSetpoints(flowConfig, asRecord(cmds[flowApp]));
+  const flowActive = alarmActive(resolveAlarmType(flowConfig));
   const pressureAlarms = resolveAlarmSetpoints(
     pressureConfig,
     asRecord(cmds[pressureApp]),
   );
+  const pressureActive = alarmActive(resolveAlarmType(pressureConfig));
 
   // Tank level_reading is metres; the v2 contract carries millimetres.
   const levelMetres = asNumber(tankTags.level_reading);
@@ -232,7 +235,7 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
     asString(tankConfig.volume_units),
     lengthUnit,
   );
-  const tankActive = tankAlarmActive(resolveAlarmType(tankConfig));
+  const tankActive = alarmActive(resolveAlarmType(tankConfig));
 
   return {
     pumps: {
@@ -243,12 +246,17 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
       value: asNumber(pressureTags.value),
       units: pressureUnits,
       high_alarm: pressureAlarms.high,
+      low_alarm: pressureAlarms.low,
+      high_alarm_active: pressureActive.high,
+      low_alarm_active: pressureActive.low,
     },
     flow: {
       value: asNumber(flowTags.value),
       units: flowUnits,
       high_alarm: flowAlarms.high,
       low_alarm: flowAlarms.low,
+      high_alarm_active: flowActive.high,
+      low_alarm_active: flowActive.low,
     },
     volume: {
       total: asNumber(pumpTags.total_volume),

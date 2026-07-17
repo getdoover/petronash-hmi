@@ -94,14 +94,16 @@ _MM_PER_METRE = 1000.0
 _MM_PER_INCH = 25.4
 
 
-def tank_alarm_active(alarm_type: Optional[str]) -> Tuple[bool, bool]:
-    """Which of the tank's alarm bounds the config actually arms: (low, high).
+def alarm_active(alarm_type: Optional[str]) -> Tuple[bool, bool]:
+    """Which of a sensor's alarm bounds the config actually arms: (low, high).
 
     Only the bounds the sensor's ``alarm_type`` puts in play are rendered — a
     "Greater Than" alarm has no low bound at all, so showing an empty "Low
     Alarm" row would imply a setpoint that cannot exist. This is separate from
     whether a setpoint has a *value*: a bound can be armed but never dragged
     (no ui_cmds entry), which still shows the row, with an em-dash.
+
+    Applies to every sensor tile (flow, pressure and tank alike).
     """
     if alarm_type == "Allowed Range":
         return True, True
@@ -273,12 +275,17 @@ class PetronashHmiApplication(Application):
         level_m = self.get_tag("level_reading", app_key=tank_app, default=None)
         level_mm = level_m * 1000 if level_m is not None else None
 
+        flow_alarm_type = self._alarm_types.get(flow_app)
         flow_low, flow_high = resolve_alarm_setpoint(
-            self._ui_cmds_data, flow_app, self._alarm_types.get(flow_app)
+            self._ui_cmds_data, flow_app, flow_alarm_type
         )
-        _, pressure_high = resolve_alarm_setpoint(
-            self._ui_cmds_data, pressure_app, self._alarm_types.get(pressure_app)
+        flow_low_active, flow_high_active = alarm_active(flow_alarm_type)
+
+        pressure_alarm_type = self._alarm_types.get(pressure_app)
+        pressure_low, pressure_high = resolve_alarm_setpoint(
+            self._ui_cmds_data, pressure_app, pressure_alarm_type
         )
+        pressure_low_active, pressure_high_active = alarm_active(pressure_alarm_type)
 
         flow_units = self._measurement_units.get(flow_app)
         length_unit = "inch" if "Inch" in str(self.config.display_units.value) else "mm"
@@ -294,7 +301,7 @@ class PetronashHmiApplication(Application):
             self._tank_capacity_units,
             length_unit,
         )
-        tank_low_active, tank_high_active = tank_alarm_active(tank_alarm_type)
+        tank_low_active, tank_high_active = alarm_active(tank_alarm_type)
 
         return {
             "pumps": {
@@ -309,12 +316,17 @@ class PetronashHmiApplication(Application):
                 "value": pressure_value,
                 "units": self._measurement_units.get(pressure_app),
                 "high_alarm": pressure_high,
+                "low_alarm": pressure_low,
+                "high_alarm_active": pressure_high_active,
+                "low_alarm_active": pressure_low_active,
             },
             "flow": {
                 "value": flow_value,
                 "units": flow_units,
                 "high_alarm": flow_high,
                 "low_alarm": flow_low,
+                "high_alarm_active": flow_high_active,
+                "low_alarm_active": flow_low_active,
             },
             "volume": {
                 "total": self.get_tag("total_volume", app_key=pump_app, default=None),

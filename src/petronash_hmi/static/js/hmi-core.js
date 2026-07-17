@@ -11,9 +11,12 @@
  *
  * {
  *   "pumps":    { "pump_1": {"on": true|false|null}, "pump_2": {"on": ...} },
- *   "pressure": { "value": 3.2|null, "units": "PSI", "high_alarm": 1500.0|null },
+ *   "pressure": { "value": 3.2|null, "units": "PSI",
+ *                 "high_alarm": 1500.0|null, "low_alarm": null,
+ *                 "high_alarm_active": true, "low_alarm_active": false },
  *   "flow":     { "value": 26.4|null, "units": "GPD",
- *                 "high_alarm": 63.3|null, "low_alarm": 34.2|null },
+ *                 "high_alarm": 63.3|null, "low_alarm": 34.2|null,
+ *                 "high_alarm_active": true, "low_alarm_active": true },
  *   "volume":   { "total": 58213.0|null, "segment_total": 12840.0|null,
  *                 "units": "gal" },
  *   "segment":  { "name": "Pipeline A"|null },
@@ -193,6 +196,21 @@ function alarmLevel(label, initialUnit) {
     return { root, value, unit };
 }
 
+/**
+ * Render one alarm-setpoint row.
+ *
+ * Only the bounds a sensor's alarm_type arms are shown: a "Greater Than" alarm
+ * has no low bound, so an empty "Low Alarm" row would imply a setpoint that
+ * cannot exist. `active` is about CONFIG, not value — an armed bound whose
+ * slider was never dragged still shows, as the em-dash. The core cannot infer
+ * this from a null value, so the assemblers pass it explicitly.
+ */
+function renderAlarmRow(row, active, value, units) {
+    row.root.style.display = active === true ? "" : "none";
+    row.value.textContent = fmtNumber(value);
+    row.unit.textContent = units || "";
+}
+
 /** A titled control card. Returns the card element (children appended). */
 function card(title, ...children) {
     const root = el("div", "control-card");
@@ -251,7 +269,13 @@ export function createHmi(rootEl, opts = {}) {
     // ---- Skid column: shared pressure, flow, total volume ---------------
     const pressure = valueDisplay("");
     const pressureHigh = alarmLevel("High Alarm:", "");
-    const pressureCard = card("Pressure", pressure.root, pressureHigh.root);
+    const pressureLow = alarmLevel("Low Alarm:", "");
+    const pressureCard = card(
+        "Pressure",
+        pressure.root,
+        pressureHigh.root,
+        pressureLow.root,
+    );
 
     const flow = valueDisplay("");
     const flowHigh = alarmLevel("High Alarm:", "");
@@ -363,19 +387,19 @@ export function createHmi(rootEl, opts = {}) {
 
         tteValue.textContent = formatTimeToEmpty(tank || {}, flowData || {});
 
-        // Only the bounds the sensor's alarm_type actually arms are rendered:
-        // a "Greater Than" alarm has no low bound, so an empty "Low Alarm" row
-        // would imply a setpoint that cannot exist. An armed-but-never-dragged
-        // bound still shows, with the em-dash.
         const alarmUnits = (tank && tank.alarm_units) || "";
-        tankHigh.root.style.display =
-            tank && tank.high_alarm_active === true ? "" : "none";
-        tankLow.root.style.display =
-            tank && tank.low_alarm_active === true ? "" : "none";
-        tankHigh.value.textContent = fmtNumber(tank ? tank.high_alarm : null);
-        tankHigh.unit.textContent = alarmUnits;
-        tankLow.value.textContent = fmtNumber(tank ? tank.low_alarm : null);
-        tankLow.unit.textContent = alarmUnits;
+        renderAlarmRow(
+            tankHigh,
+            tank && tank.high_alarm_active,
+            tank ? tank.high_alarm : null,
+            alarmUnits,
+        );
+        renderAlarmRow(
+            tankLow,
+            tank && tank.low_alarm_active,
+            tank ? tank.low_alarm : null,
+            alarmUnits,
+        );
     }
 
     function renderAlerts(alerts) {
@@ -424,16 +448,34 @@ export function createHmi(rootEl, opts = {}) {
         const pressureData = data.pressure || {};
         pressure.value.textContent = fmtNumber(pressureData.value);
         pressure.unit.textContent = pressureData.units || "";
-        pressureHigh.value.textContent = fmtNumber(pressureData.high_alarm);
-        pressureHigh.unit.textContent = pressureData.units || "";
+        renderAlarmRow(
+            pressureHigh,
+            pressureData.high_alarm_active,
+            pressureData.high_alarm,
+            pressureData.units,
+        );
+        renderAlarmRow(
+            pressureLow,
+            pressureData.low_alarm_active,
+            pressureData.low_alarm,
+            pressureData.units,
+        );
 
         const flowData = data.flow || {};
         flow.value.textContent = fmtNumber(flowData.value);
         flow.unit.textContent = flowData.units || "";
-        flowHigh.value.textContent = fmtNumber(flowData.high_alarm);
-        flowHigh.unit.textContent = flowData.units || "";
-        flowLow.value.textContent = fmtNumber(flowData.low_alarm);
-        flowLow.unit.textContent = flowData.units || "";
+        renderAlarmRow(
+            flowHigh,
+            flowData.high_alarm_active,
+            flowData.high_alarm,
+            flowData.units,
+        );
+        renderAlarmRow(
+            flowLow,
+            flowData.low_alarm_active,
+            flowData.low_alarm,
+            flowData.units,
+        );
 
         const volumeData = data.volume || {};
         segmentVolume.value.textContent = fmtNumber(volumeData.segment_total);

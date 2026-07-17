@@ -13,12 +13,23 @@ export interface PumpStateV2 {
 
 export interface DashboardDataV2 {
   pumps: { pump_1: PumpStateV2; pump_2: PumpStateV2 };
-  pressure: { value: number | null; units: string; high_alarm: number | null };
+  /** *_alarm_active say which bounds the sensor's alarm_type arms; only those
+   *  rows render. An armed bound with a null value shows as an em-dash. */
+  pressure: {
+    value: number | null;
+    units: string;
+    high_alarm: number | null;
+    low_alarm: number | null;
+    high_alarm_active: boolean;
+    low_alarm_active: boolean;
+  };
   flow: {
     value: number | null;
     units: string;
     high_alarm: number | null;
     low_alarm: number | null;
+    high_alarm_active: boolean;
+    low_alarm_active: boolean;
   };
   volume: {
     total: number | null;

@@ -5,8 +5,22 @@ from petronash_hmi.dashboard import DashboardData
 # Test-rig-shaped full update (flow Allowed Range set, pressure setpoint never set).
 FULL_UPDATE = {
     "pumps": {"pump_1": {"on": True}, "pump_2": {"on": False}},
-    "pressure": {"value": 3.2, "units": "PSI", "high_alarm": None},
-    "flow": {"value": 42.7, "units": "GPD", "high_alarm": 63.3, "low_alarm": 34.2},
+    "pressure": {
+        "value": 3.2,
+        "units": "PSI",
+        "high_alarm": None,
+        "low_alarm": None,
+        "high_alarm_active": True,
+        "low_alarm_active": False,
+    },
+    "flow": {
+        "value": 42.7,
+        "units": "GPD",
+        "high_alarm": 63.3,
+        "low_alarm": 34.2,
+        "high_alarm_active": True,
+        "low_alarm_active": True,
+    },
     "volume": {"total": 58213.0, "segment_total": 12840.0, "units": "gal"},
     "segment": {"name": "Pipeline A"},
     "tank": {
@@ -43,8 +57,22 @@ def test_to_dict_v2_shape():
     assert set(d["pumps"]) == {"pump_1", "pump_2"}
     assert set(d["pumps"]["pump_1"]) == {"on"}
     assert set(d["pumps"]["pump_2"]) == {"on"}
-    assert set(d["pressure"]) == {"value", "units", "high_alarm"}
-    assert set(d["flow"]) == {"value", "units", "high_alarm", "low_alarm"}
+    assert set(d["pressure"]) == {
+        "value",
+        "units",
+        "high_alarm",
+        "low_alarm",
+        "high_alarm_active",
+        "low_alarm_active",
+    }
+    assert set(d["flow"]) == {
+        "value",
+        "units",
+        "high_alarm",
+        "low_alarm",
+        "high_alarm_active",
+        "low_alarm_active",
+    }
     assert set(d["volume"]) == {"total", "segment_total", "units"}
     assert set(d["segment"]) == {"name"}
     assert set(d["tank"]) == {
@@ -112,12 +140,21 @@ def test_update_from_dict_round_trip():
 
     assert d["pumps"]["pump_1"]["on"] is True
     assert d["pumps"]["pump_2"]["on"] is False
-    assert d["pressure"] == {"value": 3.2, "units": "PSI", "high_alarm": None}
+    assert d["pressure"] == {
+        "value": 3.2,
+        "units": "PSI",
+        "high_alarm": None,
+        "low_alarm": None,
+        "high_alarm_active": True,
+        "low_alarm_active": False,
+    }
     assert d["flow"] == {
         "value": 42.7,
         "units": "GPD",
         "high_alarm": 63.3,
         "low_alarm": 34.2,
+        "high_alarm_active": True,
+        "low_alarm_active": True,
     }
     assert d["volume"] == {
         "total": 58213.0,

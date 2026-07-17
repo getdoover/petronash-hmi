@@ -55,16 +55,22 @@ class DashboardData:
         self.pump_1_on: Optional[bool] = None
         self.pump_2_on: Optional[bool] = None
 
-        # Pressure (shared sensor)
+        # Pressure (shared sensor). *_alarm_active say which bounds the
+        # sensor's alarm_type arms; only those rows are rendered.
         self.pressure_value: Optional[float] = None
         self.pressure_units: Optional[str] = None
         self.pressure_high_alarm: Optional[float] = None
+        self.pressure_low_alarm: Optional[float] = None
+        self.pressure_high_alarm_active: bool = False
+        self.pressure_low_alarm_active: bool = False
 
         # Flow (shared sensor)
         self.flow_value: Optional[float] = None
         self.flow_units: Optional[str] = None
         self.flow_high_alarm: Optional[float] = None
         self.flow_low_alarm: Optional[float] = None
+        self.flow_high_alarm_active: bool = False
+        self.flow_low_alarm_active: bool = False
 
         # Volume totaliser (from the pump controller app). volume_total is the
         # grand total across all segments; volume_segment_total is the running
@@ -117,12 +123,17 @@ class DashboardData:
                 "value": self.pressure_value,
                 "units": self.pressure_units,
                 "high_alarm": self.pressure_high_alarm,
+                "low_alarm": self.pressure_low_alarm,
+                "high_alarm_active": self.pressure_high_alarm_active,
+                "low_alarm_active": self.pressure_low_alarm_active,
             },
             "flow": {
                 "value": self.flow_value,
                 "units": self.flow_units,
                 "high_alarm": self.flow_high_alarm,
                 "low_alarm": self.flow_low_alarm,
+                "high_alarm_active": self.flow_high_alarm_active,
+                "low_alarm_active": self.flow_low_alarm_active,
             },
             "volume": {
                 "total": self.volume_total,
@@ -180,6 +191,12 @@ class DashboardData:
                 self.pressure_units = _opt_str(pressure["units"])
             if "high_alarm" in pressure:
                 self.pressure_high_alarm = _opt_float(pressure["high_alarm"])
+            if "low_alarm" in pressure:
+                self.pressure_low_alarm = _opt_float(pressure["low_alarm"])
+            if "high_alarm_active" in pressure:
+                self.pressure_high_alarm_active = bool(pressure["high_alarm_active"])
+            if "low_alarm_active" in pressure:
+                self.pressure_low_alarm_active = bool(pressure["low_alarm_active"])
 
         if "flow" in data and isinstance(data["flow"], dict):
             flow = data["flow"]
@@ -191,6 +208,10 @@ class DashboardData:
                 self.flow_high_alarm = _opt_float(flow["high_alarm"])
             if "low_alarm" in flow:
                 self.flow_low_alarm = _opt_float(flow["low_alarm"])
+            if "high_alarm_active" in flow:
+                self.flow_high_alarm_active = bool(flow["high_alarm_active"])
+            if "low_alarm_active" in flow:
+                self.flow_low_alarm_active = bool(flow["low_alarm_active"])
 
         if "volume" in data and isinstance(data["volume"], dict):
             volume = data["volume"]
