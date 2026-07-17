@@ -99,6 +99,8 @@ class DashboardData:
         # has no low bound, so its row is not rendered at all.
         self.tank_high_alarm_active: bool = False
         self.tank_low_alarm_active: bool = False
+        # The pump controller's tank-empty alert threshold, in hours.
+        self.tank_time_alarm_hours: Optional[float] = None
 
         # Display units ("mm" or "inch") for length readings; defaults to inches
         self.length_unit: str = "inch"
@@ -155,6 +157,7 @@ class DashboardData:
                 "alarm_units": self.tank_alarm_units,
                 "high_alarm_active": self.tank_high_alarm_active,
                 "low_alarm_active": self.tank_low_alarm_active,
+                "time_alarm_hours": self.tank_time_alarm_hours,
             },
             "units": {
                 "length": self.length_unit,
@@ -248,6 +251,8 @@ class DashboardData:
                 self.tank_high_alarm_active = bool(tank["high_alarm_active"])
             if "low_alarm_active" in tank:
                 self.tank_low_alarm_active = bool(tank["low_alarm_active"])
+            if "time_alarm_hours" in tank:
+                self.tank_time_alarm_hours = _opt_float(tank["time_alarm_hours"])
 
         if "units" in data and isinstance(data["units"], dict):
             units = data["units"]

@@ -24,7 +24,8 @@
  *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null },
  *                 "high_alarm": 56.2|null, "low_alarm": null,
  *                 "alarm_units": "%"|"L"|"mm"|"\""|null,
- *                 "high_alarm_active": true, "low_alarm_active": false },
+ *                 "high_alarm_active": true, "low_alarm_active": false,
+ *                 "time_alarm_hours": 24|null },
  *   "units":    { "length": "inch"|"mm" },
  *   "alerts":   { "unexpected_flow": false, "low_flow": false,
  *                 "low_tank_time": false },
@@ -307,6 +308,10 @@ export function createHmi(rootEl, opts = {}) {
     // the assembler hands them over display-ready.
     const tankHigh = alarmLevel("High Alarm:", "");
     const tankLow = alarmLevel("Low Alarm:", "");
+    // The pump controller's tank-empty alert threshold, stated the same way as
+    // the level sensor's own alarm point so the tile shows BOTH of the tank's
+    // alarms — the level one and the remaining-time one.
+    const tankTimeAlarm = alarmLevel("Time Alarm:", "h");
 
     const readouts = el("div", "tank-gauge-readouts");
     readouts.append(
@@ -315,6 +320,7 @@ export function createHmi(rootEl, opts = {}) {
         tankTimeToEmpty,
         tankHigh.root,
         tankLow.root,
+        tankTimeAlarm.root,
     );
 
     const gaugeWrap = el("div", "tank-gauge-wrap");
@@ -402,6 +408,12 @@ export function createHmi(rootEl, opts = {}) {
             tank ? tank.low_alarm : null,
             alarmUnits,
         );
+        // The remaining-time alarm is always armed by the pump controller, so
+        // it shows whenever we can read its threshold; a threshold we cannot
+        // read is hidden rather than shown as a dangling em-dash.
+        const timeAlarmHours =
+            tank && typeof tank.time_alarm_hours === "number" ? tank.time_alarm_hours : null;
+        renderAlarmRow(tankTimeAlarm, timeAlarmHours !== null, timeAlarmHours, "h");
     }
 
     function renderAlerts(alerts) {

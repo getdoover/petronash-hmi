@@ -32,6 +32,7 @@ FULL_UPDATE = {
         "alarm_units": "%",
         "high_alarm_active": True,
         "low_alarm_active": False,
+        "time_alarm_hours": 24,
     },
     "units": {"length": "inch"},
     "alerts": {"unexpected_flow": False, "low_flow": True, "low_tank_time": True},
@@ -84,6 +85,7 @@ def test_to_dict_v2_shape():
         "alarm_units",
         "high_alarm_active",
         "low_alarm_active",
+        "time_alarm_hours",
     }
     assert set(d["tank"]["capacity"]) == {"value", "units"}
     assert set(d["units"]) == {"length"}
@@ -171,6 +173,7 @@ def test_update_from_dict_round_trip():
         "alarm_units": "%",
         "high_alarm_active": True,
         "low_alarm_active": False,
+        "time_alarm_hours": 24.0,
     }
     assert d["units"] == {"length": "inch"}
     assert d["alerts"] == {
@@ -275,5 +278,6 @@ def test_absent_keys_keep_current_values():
         "alarm_units": "%",
         "high_alarm_active": True,
         "low_alarm_active": False,
+        "time_alarm_hours": 24.0,
     }
     assert d["pressure"]["value"] == 3.2

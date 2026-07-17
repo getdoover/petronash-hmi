@@ -194,6 +194,7 @@ class PetronashHmiApplication(Application):
         self._tank_capacity_value: Optional[float] = None
         self._tank_capacity_units: Optional[str] = None
         self._tank_alarm_source: Optional[str] = None
+        self._tank_time_alarm_hours: Optional[float] = None
         await self._load_deployment_config()
 
         # Alarm setpoints: cached ui_cmds aggregate, refreshed on a slow cadence.
@@ -217,6 +218,7 @@ class PetronashHmiApplication(Application):
         flow_app = self.config.flow_sensor_app.value
         pressure_app = self.config.pressure_sensor_app.value
         tank_app = self.config.tank_level_app.value
+        pump_app = self.config.pump_controller_app.value
 
         for app_key in (flow_app, pressure_app, tank_app):
             app_config = applications.get(app_key) or {}
@@ -233,6 +235,14 @@ class PetronashHmiApplication(Application):
         # "Filled Percentage" | "Volume"). It sets the setpoint's units, so the
         # tank tile can label its alarm the way the sensor's own slider does.
         self._tank_alarm_source = tank_config.get("alarm_source")
+
+        # The pump controller's own tank-empty alert threshold (hours). Shown
+        # in the Tank tile beside the level sensor's alarm so the panel states
+        # both of the tank's alarm points, not just the level one.
+        pump_config = applications.get(pump_app) or {}
+        self._tank_time_alarm_hours = pump_config.get(
+            "tank_empty_alert_threshold_hours"
+        )
 
     async def _refresh_ui_cmds(self):
         """Refresh the cached ui_cmds aggregate if the cache is stale."""
@@ -352,6 +362,7 @@ class PetronashHmiApplication(Application):
                 "alarm_units": tank_alarm_units,
                 "high_alarm_active": tank_high_active,
                 "low_alarm_active": tank_low_active,
+                "time_alarm_hours": self._tank_time_alarm_hours,
             },
             "units": {"length": length_unit},
             "alerts": {

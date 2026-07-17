@@ -281,6 +281,11 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
       alarm_units: tankAlarm.units,
       high_alarm_active: tankActive.high,
       low_alarm_active: tankActive.low,
+      // The pump controller's own tank-empty alert threshold, so the tile can
+      // state both of the tank's alarms (level and remaining time).
+      time_alarm_hours: asNumber(
+        asRecord(applications[pumpApp]).tank_empty_alert_threshold_hours,
+      ),
     },
     units: { length: lengthUnit },
     alerts: {

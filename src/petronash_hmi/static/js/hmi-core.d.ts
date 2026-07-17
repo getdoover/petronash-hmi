@@ -51,6 +51,8 @@ export interface DashboardDataV2 {
      *  armed-but-never-dragged bound is active with a null value (em-dash). */
     high_alarm_active: boolean;
     low_alarm_active: boolean;
+    /** The pump controller's tank-empty alert threshold, in hours. */
+    time_alarm_hours: number | null;
   };
   units: { length: "inch" | "mm" };
   alerts: {
