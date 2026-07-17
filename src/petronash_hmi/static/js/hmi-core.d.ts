@@ -30,6 +30,12 @@ export interface DashboardDataV2 {
     percent: number | null;
     level_mm: number | null;
     capacity: { value: number | null; units: string | null };
+    /** Alarm setpoint(s), already in display units (see alarm_units). */
+    high_alarm: number | null;
+    low_alarm: number | null;
+    /** Units of the alarm setpoint — the level sensor's alarm_source decides
+     *  whether that is a percentage, a volume or a length. */
+    alarm_units: string | null;
   };
   units: { length: "inch" | "mm" };
   alerts: {

@@ -18,7 +18,9 @@
  *                 "units": "gal" },
  *   "segment":  { "name": "Pipeline A"|null },
  *   "tank":     { "percent": 48.8|null, "level_mm": 19030.0|null,
- *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null } },
+ *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null },
+ *                 "high_alarm": 56.2|null, "low_alarm": null,
+ *                 "alarm_units": "%"|"L"|"mm"|"\""|null },
  *   "units":    { "length": "inch"|"mm" },
  *   "alerts":   { "unexpected_flow": false, "low_flow": false,
  *                 "low_tank_time": false },
@@ -241,20 +243,11 @@ export function createHmi(rootEl, opts = {}) {
     const segmentVolumeCard = el("div", "control-card");
     segmentVolumeCard.append(segmentVolumeTitle, segmentVolume.root);
 
-    // Grand total across all pipelines (volume.total). Moved here from Skid.
-    const volume = valueDisplay("");
-    const volumeCard = card("Total Volume Pumped", volume.root);
-
     const pumpGrid = el("div", "controls-grid controls-grid-vertical");
-    pumpGrid.append(
-        pumpStates[0].card,
-        pumpStates[1].card,
-        segmentVolumeCard,
-        volumeCard,
-    );
+    pumpGrid.append(pumpStates[0].card, pumpStates[1].card, segmentVolumeCard);
     const pumpSection = section("pump-section", "Pumps", pumpGrid);
 
-    // ---- Skid column: shared pressure, flow ----------------------------
+    // ---- Skid column: shared pressure, flow, total volume ---------------
     const pressure = valueDisplay("");
     const pressureHigh = alarmLevel("High Alarm:", "");
     const pressureCard = card("Pressure", pressure.root, pressureHigh.root);
@@ -264,8 +257,12 @@ export function createHmi(rootEl, opts = {}) {
     const flowLow = alarmLevel("Low Alarm:", "");
     const flowCard = card("Flow", flow.root, flowHigh.root, flowLow.root);
 
+    // Grand total across all pipelines (volume.total).
+    const volume = valueDisplay("");
+    const volumeCard = card("Total Volume Pumped", volume.root);
+
     const skidGrid = el("div", "controls-grid controls-grid-vertical");
-    skidGrid.append(pressureCard, flowCard);
+    skidGrid.append(pressureCard, flowCard, volumeCard);
     const skidSection = section("skid-section", "Skid", skidGrid);
 
     // ---- Tank tile ------------------------------------------------------
@@ -280,8 +277,20 @@ export function createHmi(rootEl, opts = {}) {
     const tteValue = el("span", "tank-tte-value", PLACEHOLDER);
     tankTimeToEmpty.append(el("span", "tank-tte-label", "Time to Empty"), tteValue);
 
+    // Alarm setpoint(s), rendered like the Pressure/Flow tiles. The level
+    // sensor's alarm_source decides the units (%, a volume, or a length), so
+    // the assembler hands them over display-ready.
+    const tankHigh = alarmLevel("High Alarm:", "");
+    const tankLow = alarmLevel("Low Alarm:", "");
+
     const readouts = el("div", "tank-gauge-readouts");
-    readouts.append(tankPercent.root, tankLevel.root, tankTimeToEmpty);
+    readouts.append(
+        tankPercent.root,
+        tankLevel.root,
+        tankTimeToEmpty,
+        tankHigh.root,
+        tankLow.root,
+    );
 
     const gaugeWrap = el("div", "tank-gauge-wrap");
     gaugeWrap.append(gauge, readouts);
@@ -352,6 +361,12 @@ export function createHmi(rootEl, opts = {}) {
         tankLevel.unit.textContent = level.unit;
 
         tteValue.textContent = formatTimeToEmpty(tank || {}, flowData || {});
+
+        const alarmUnits = (tank && tank.alarm_units) || "";
+        tankHigh.value.textContent = fmtNumber(tank ? tank.high_alarm : null);
+        tankHigh.unit.textContent = alarmUnits;
+        tankLow.value.textContent = fmtNumber(tank ? tank.low_alarm : null);
+        tankLow.unit.textContent = alarmUnits;
     }
 
     function renderAlerts(alerts) {

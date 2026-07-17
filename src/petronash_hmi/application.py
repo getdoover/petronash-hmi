@@ -88,6 +88,50 @@ def alarm_type_from_app_config(app_config: Optional[Dict[str, Any]]) -> Optional
     return alarm_type if isinstance(alarm_type, str) else None
 
 
+# Metres -> inch, for a "Level Reading" alarm setpoint (level_reading is
+# published in metres, like the tank's level readout).
+_MM_PER_METRE = 1000.0
+_MM_PER_INCH = 25.4
+
+
+def tank_alarm_display(
+    low: Optional[float],
+    high: Optional[float],
+    alarm_source: Optional[str],
+    volume_units: Optional[str],
+    length_unit: str,
+) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+    """Render the level sensor's alarm setpoint(s) as a display value + unit.
+
+    The sensor's alarm tracks one of three readings and that choice sets the
+    setpoint's units (its ``alarm_source`` config, which "sets the slider's
+    bounds and units"):
+
+    - "Filled Percentage" -> already a percentage.
+    - "Volume"            -> the sensor's ``volume_units`` (e.g. "L").
+    - "Level Reading"     -> metres, converted to the panel's length unit so it
+      reads in the same units as the tank's own level readout.
+
+    An unknown or absent source yields no setpoint rather than a mislabelled
+    number — we cannot know what the value means.
+    """
+    if alarm_source == "Filled Percentage":
+        return low, high, "%"
+    if alarm_source == "Volume":
+        return low, high, volume_units
+    if alarm_source == "Level Reading":
+        if length_unit == "mm":
+            factor, unit = _MM_PER_METRE, "mm"
+        else:
+            factor, unit = _MM_PER_METRE / _MM_PER_INCH, '"'
+        return (
+            None if low is None else low * factor,
+            None if high is None else high * factor,
+            unit,
+        )
+    return None, None, None
+
+
 def volume_units_from_flow_units(flow_units: Optional[str]) -> str:
     """Derive the totaliser's volume unit label from the flow sensor's units."""
     if isinstance(flow_units, str) and flow_units.strip().upper() in _GALLON_FLOW_UNITS:
@@ -129,6 +173,7 @@ class PetronashHmiApplication(Application):
         # time-to-empty math lives entirely in hmi-core.js.
         self._tank_capacity_value: Optional[float] = None
         self._tank_capacity_units: Optional[str] = None
+        self._tank_alarm_source: Optional[str] = None
         await self._load_deployment_config()
 
         # Alarm setpoints: cached ui_cmds aggregate, refreshed on a slow cadence.
@@ -153,7 +198,7 @@ class PetronashHmiApplication(Application):
         pressure_app = self.config.pressure_sensor_app.value
         tank_app = self.config.tank_level_app.value
 
-        for app_key in (flow_app, pressure_app):
+        for app_key in (flow_app, pressure_app, tank_app):
             app_config = applications.get(app_key) or {}
             self._measurement_units[app_key] = app_config.get("measurement_units")
             self._alarm_types[app_key] = alarm_type_from_app_config(app_config)
@@ -164,6 +209,10 @@ class PetronashHmiApplication(Application):
         tank_config = applications.get(tank_app) or {}
         self._tank_capacity_value = tank_config.get("max_volume")
         self._tank_capacity_units = tank_config.get("volume_units")
+        # Which reading the level sensor's alarm tracks ("Level Reading" |
+        # "Filled Percentage" | "Volume"). It sets the setpoint's units, so the
+        # tank tile can label its alarm the way the sensor's own slider does.
+        self._tank_alarm_source = tank_config.get("alarm_source")
 
     async def _refresh_ui_cmds(self):
         """Refresh the cached ui_cmds aggregate if the cache is stale."""
@@ -216,6 +265,17 @@ class PetronashHmiApplication(Application):
         flow_units = self._measurement_units.get(flow_app)
         length_unit = "inch" if "Inch" in str(self.config.display_units.value) else "mm"
 
+        tank_low, tank_high = resolve_alarm_setpoint(
+            self._ui_cmds_data, tank_app, self._alarm_types.get(tank_app)
+        )
+        tank_alarm_low, tank_alarm_high, tank_alarm_units = tank_alarm_display(
+            tank_low,
+            tank_high,
+            self._tank_alarm_source,
+            self._tank_capacity_units,
+            length_unit,
+        )
+
         return {
             "pumps": {
                 "pump_1": {
@@ -255,6 +315,9 @@ class PetronashHmiApplication(Application):
                     "value": self._tank_capacity_value,
                     "units": self._tank_capacity_units,
                 },
+                "high_alarm": tank_alarm_high,
+                "low_alarm": tank_alarm_low,
+                "alarm_units": tank_alarm_units,
             },
             "units": {"length": length_unit},
             "alerts": {

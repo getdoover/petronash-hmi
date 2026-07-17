@@ -84,6 +84,11 @@ class DashboardData:
         # pass-through — the time-to-empty math lives entirely in hmi-core.js)
         self.tank_capacity_value: Optional[float] = None
         self.tank_capacity_units: Optional[str] = None
+        # Tank alarm setpoint(s), already in display units (the level sensor's
+        # alarm_source decides whether that is %, a volume or a length).
+        self.tank_high_alarm: Optional[float] = None
+        self.tank_low_alarm: Optional[float] = None
+        self.tank_alarm_units: Optional[str] = None
 
         # Display units ("mm" or "inch") for length readings; defaults to inches
         self.length_unit: str = "inch"
@@ -130,6 +135,9 @@ class DashboardData:
                     "value": self.tank_capacity_value,
                     "units": self.tank_capacity_units,
                 },
+                "high_alarm": self.tank_high_alarm,
+                "low_alarm": self.tank_low_alarm,
+                "alarm_units": self.tank_alarm_units,
             },
             "units": {
                 "length": self.length_unit,
@@ -203,6 +211,12 @@ class DashboardData:
                     self.tank_capacity_value = _opt_float(capacity["value"])
                 if "units" in capacity:
                     self.tank_capacity_units = _opt_str(capacity["units"])
+            if "high_alarm" in tank:
+                self.tank_high_alarm = _opt_float(tank["high_alarm"])
+            if "low_alarm" in tank:
+                self.tank_low_alarm = _opt_float(tank["low_alarm"])
+            if "alarm_units" in tank:
+                self.tank_alarm_units = _opt_str(tank["alarm_units"])
 
         if "units" in data and isinstance(data["units"], dict):
             units = data["units"]

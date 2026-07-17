@@ -115,6 +115,44 @@ export function volumeUnits(flowUnits: string): string {
   return /^gp/i.test(flowUnits.trim()) ? "gal" : "units";
 }
 
+const MM_PER_METRE = 1000;
+const MM_PER_INCH = 25.4;
+
+/**
+ * Render the level sensor's alarm setpoint(s) as a display value + unit.
+ *
+ * The sensor's `alarm_source` picks which reading the alarm tracks, and that
+ * sets the setpoint's units: "Filled Percentage" -> %, "Volume" -> the
+ * sensor's volume_units, "Level Reading" -> metres converted to the panel's
+ * length unit. An unknown source yields no setpoint rather than a mislabelled
+ * number. Mirrors tank_alarm_display() in application.py.
+ */
+export function tankAlarmDisplay(
+  low: number | null,
+  high: number | null,
+  alarmSource: string | null,
+  volumeUnitsLabel: string | null,
+  lengthUnit: "inch" | "mm",
+): { low: number | null; high: number | null; units: string | null } {
+  if (alarmSource === "Filled Percentage") {
+    return { low, high, units: "%" };
+  }
+  if (alarmSource === "Volume") {
+    return { low, high, units: volumeUnitsLabel };
+  }
+  if (alarmSource === "Level Reading") {
+    const factor =
+      lengthUnit === "mm" ? MM_PER_METRE : MM_PER_METRE / MM_PER_INCH;
+    const unit = lengthUnit === "mm" ? "mm" : '"';
+    return {
+      low: low === null ? null : low * factor,
+      high: high === null ? null : high * factor,
+      units: unit,
+    };
+  }
+  return { low: null, high: null, units: null };
+}
+
 export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
   const applications = asRecord(asRecord(inputs.deploymentConfig).applications);
   const hmiConfig = asRecord(applications[inputs.appKey]);
@@ -154,6 +192,15 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
   const displayUnits = asString(hmiConfig.display_units) ?? "Inch";
   const lengthUnit: "inch" | "mm" = /inch/i.test(displayUnits) ? "inch" : "mm";
 
+  const tankAlarms = resolveAlarmSetpoints(tankConfig, asRecord(cmds[tankApp]));
+  const tankAlarm = tankAlarmDisplay(
+    tankAlarms.low,
+    tankAlarms.high,
+    asString(tankConfig.alarm_source),
+    asString(tankConfig.volume_units),
+    lengthUnit,
+  );
+
   return {
     pumps: {
       pump_1: { on: asBool(pumpTags.pump_1_on) },
@@ -188,6 +235,9 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
         value: asNumber(tankConfig.max_volume),
         units: asString(tankConfig.volume_units),
       },
+      high_alarm: tankAlarm.high,
+      low_alarm: tankAlarm.low,
+      alarm_units: tankAlarm.units,
     },
     units: { length: lengthUnit },
     alerts: {

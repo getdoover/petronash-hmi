@@ -1,10 +1,60 @@
 """Tests for the pure alarm-setpoint resolution helpers in application.py."""
 
+import pytest
+
 from petronash_hmi.application import (
     alarm_type_from_app_config,
     resolve_alarm_setpoint,
+    tank_alarm_display,
     volume_units_from_flow_units,
 )
+
+
+class TestTankAlarmDisplay:
+    """The level sensor's alarm_source sets the setpoint's units."""
+
+    def test_filled_percentage_is_a_percentage(self):
+        # The live test rig: Greater Than @ 56.2 on "Filled Percentage".
+        assert tank_alarm_display(None, 56.2, "Filled Percentage", "L", "inch") == (
+            None,
+            56.2,
+            "%",
+        )
+
+    def test_volume_uses_the_sensors_volume_units(self):
+        assert tank_alarm_display(None, 1000.0, "Volume", "L", "inch") == (
+            None,
+            1000.0,
+            "L",
+        )
+
+    def test_level_reading_converts_metres_to_inches(self):
+        low, high, units = tank_alarm_display(None, 1.0, "Level Reading", "L", "inch")
+        assert low is None
+        assert high == pytest.approx(1000.0 / 25.4)  # 1 m in inches
+        assert units == '"'
+
+    def test_level_reading_converts_metres_to_mm(self):
+        _, high, units = tank_alarm_display(None, 1.5, "Level Reading", "L", "mm")
+        assert high == pytest.approx(1500.0)
+        assert units == "mm"
+
+    def test_allowed_range_carries_both_bounds(self):
+        assert tank_alarm_display(20.0, 80.0, "Filled Percentage", "L", "inch") == (
+            20.0,
+            80.0,
+            "%",
+        )
+
+    def test_unknown_source_yields_no_setpoint(self):
+        # Better no reading than a number labelled with the wrong units.
+        assert tank_alarm_display(1.0, 2.0, None, "L", "inch") == (None, None, None)
+        assert tank_alarm_display(1.0, 2.0, "Something Else", "L", "inch") == (
+            None,
+            None,
+            None,
+        )
+
 
 # Shaped like the live test rig's ui_cmds aggregate data: flow has BOTH a stale
 # alarm_point and the active alarm_range (stored high-first to prove sorting);

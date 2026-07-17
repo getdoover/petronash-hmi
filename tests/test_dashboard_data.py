@@ -13,6 +13,9 @@ FULL_UPDATE = {
         "percent": 48.8,
         "level_mm": 19030.0,
         "capacity": {"value": 100000.0, "units": "L"},
+        "high_alarm": 56.2,
+        "low_alarm": None,
+        "alarm_units": "%",
     },
     "units": {"length": "inch"},
     "alerts": {"unexpected_flow": False, "low_flow": True, "low_tank_time": True},
@@ -42,7 +45,14 @@ def test_to_dict_v2_shape():
     assert set(d["flow"]) == {"value", "units", "high_alarm", "low_alarm"}
     assert set(d["volume"]) == {"total", "segment_total", "units"}
     assert set(d["segment"]) == {"name"}
-    assert set(d["tank"]) == {"percent", "level_mm", "capacity"}
+    assert set(d["tank"]) == {
+        "percent",
+        "level_mm",
+        "capacity",
+        "high_alarm",
+        "low_alarm",
+        "alarm_units",
+    }
     assert set(d["tank"]["capacity"]) == {"value", "units"}
     assert set(d["units"]) == {"length"}
     assert set(d["alerts"]) == {"unexpected_flow", "low_flow", "low_tank_time"}
@@ -115,6 +125,9 @@ def test_update_from_dict_round_trip():
         "percent": 48.8,
         "level_mm": 19030.0,
         "capacity": {"value": 100000.0, "units": "L"},
+        "high_alarm": 56.2,
+        "low_alarm": None,
+        "alarm_units": "%",
     }
     assert d["units"] == {"length": "inch"}
     assert d["alerts"] == {
@@ -214,5 +227,8 @@ def test_absent_keys_keep_current_values():
         "percent": 50.1,
         "level_mm": 19030.0,
         "capacity": {"value": 100000.0, "units": "L"},
+        "high_alarm": 56.2,
+        "low_alarm": None,
+        "alarm_units": "%",
     }
     assert d["pressure"]["value"] == 3.2
