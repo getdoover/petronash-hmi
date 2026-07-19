@@ -31,12 +31,37 @@ import { assembleDashboardData } from "./lib/assembleDashboardData";
 interface UiRemoteComponent {
   /** This install's app key — its config block lives under it in deployment_config. */
   app_key?: string;
+  /** Element name. In the DDA local widget host this is the widget channel,
+   *  `<app_key>_widget`, and app_key itself is not supplied. */
+  name?: string;
+}
+
+const DEFAULT_APP_KEY = "petronash_hmi_1";
+
+/**
+ * Resolve this install's app_key across both widget hosts.
+ *
+ * The cloud interpreter supplies `uiElement.app_key` ($config.app().APP_KEY).
+ * The device-agent local host (dda-agent) instead names the element after the
+ * widget channel (`<app_key>_widget`) and passes the key only as a sibling
+ * `applicationName` prop the federated component never receives — so we recover
+ * app_key by stripping the `_widget` suffix. Without this the widget silently
+ * falls back to default peer-app keys, which is only correct when the install
+ * happens to use the defaults.
+ */
+function resolveAppKey(uiElement?: UiRemoteComponent): string {
+  if (uiElement?.app_key) return uiElement.app_key;
+  const name = uiElement?.name;
+  if (typeof name === "string" && name.endsWith("_widget")) {
+    return name.slice(0, -"_widget".length);
+  }
+  return DEFAULT_APP_KEY;
 }
 
 function PetronashHmiInner({ uiElement }: { uiElement?: UiRemoteComponent }) {
   const params = useRemoteParams();
   const agentId = params?.agentId;
-  const appKey = uiElement?.app_key ?? "petronash_hmi";
+  const appKey = resolveAppKey(uiElement);
 
   const { data: deploymentConfig } = useAgentChannel(
     agentId,
