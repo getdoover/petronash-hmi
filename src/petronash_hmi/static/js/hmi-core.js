@@ -226,6 +226,38 @@ function section(extraClass, heading, ...children) {
     return root;
 }
 
+/** Build a logo <img> with its src, alt text and class. */
+function logoImg(src, alt, className) {
+    const img = el("img", className);
+    img.src = src;
+    img.alt = alt;
+    return img;
+}
+
+/**
+ * Build the branded header bar shown ABOVE the alert banner and tiles:
+ * Petronash · Remote-Command wordmark · "SIA Remote Command" · Aramco, in one
+ * centred title row. Rendered only when the embedder supplies opts.logos (the
+ * render core is framework-free and cannot import images itself), so a non-logo
+ * embedder gets no header. Both widget hosts — the Doover cloud UI and the DDA
+ * local widget host — pass the logos in.
+ *
+ * @param {{petronash: string, remoteCommand: string, aramco: string}} logos
+ * @returns {HTMLElement}
+ */
+function buildHeader(logos) {
+    const title = el("h1", "hmi-header-title");
+    title.append(
+        logoImg(logos.petronash, "Petronash", "hmi-title-logo hmi-title-logo-left"),
+        logoImg(logos.remoteCommand, "SIA Remote Command", "hmi-header-logo"),
+        document.createTextNode("SIA Remote Command"),
+        logoImg(logos.aramco, "Aramco", "hmi-title-logo hmi-title-logo-right"),
+    );
+    const header = el("header", "hmi-header");
+    header.append(title);
+    return header;
+}
+
 /**
  * Create the HMI inside rootEl.
  *
@@ -236,6 +268,10 @@ function section(extraClass, heading, ...children) {
  *   z-axis, dimming them. "inline" (cloud widget): a banner stacked ABOVE the
  *   tiles on the y-axis, pushing them down rather than covering them, so it
  *   never obscures content in the host UI's variable-height column.
+ * @param {{petronash: string, remoteCommand: string, aramco: string}} [opts.logos]
+ *   Brand logos (img srcs — the cloud widget passes inlined data URIs). When
+ *   given, a frosted header bar is built as the FIRST child of rootEl, above
+ *   the alert banner and grid. Omit for no header.
  * @returns {{update: (data: object|null|undefined) => void, destroy: () => void}}
  */
 export function createHmi(rootEl, opts = {}) {
@@ -349,6 +385,13 @@ export function createHmi(rootEl, opts = {}) {
         rootEl.append(alertPopover, grid);
     } else {
         rootEl.append(grid, alertDim, alertPopover);
+    }
+
+    // ---- Branded header (opts.logos) ------------------------------------
+    // Prepended so it sits above the alert banner and the tiles, regardless of
+    // the alert layout. No logos → no header, leaving other embedders untouched.
+    if (opts.logos) {
+        rootEl.prepend(buildHeader(opts.logos));
     }
 
     // ---- Render ----------------------------------------------------------

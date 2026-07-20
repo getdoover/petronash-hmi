@@ -15,6 +15,57 @@
     color: #333;
 }
 
+/* Branded header bar (built by createHmi only when opts.logos is supplied):
+   Petronash · Remote-Command wordmark · "SIA Remote Command" · Aramco, in one
+   centred title row, sitting above the alert banner and tiles. It renders in
+   the same ~380-500px host column the tiles do, so the title wraps (centred)
+   and its font clamps down rather than overflowing horizontally. */
+.hmi-root .hmi-header {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: clamp(8px, 1.5vw, 15px);
+    padding: clamp(12px, 2vw, 24px);
+    margin-bottom: clamp(10px, 2vh, 20px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hmi-root .hmi-header-title {
+    color: #2c3e50;
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Both title logos are cropped to their content, so equal height = equal mark
+   height. */
+.hmi-root .hmi-title-logo {
+    height: 1.28em;
+    width: auto;
+    vertical-align: middle;
+}
+
+.hmi-root .hmi-title-logo-left {
+    margin-right: 20px;
+}
+
+.hmi-root .hmi-title-logo-right {
+    margin-left: 20px;
+}
+
+.hmi-root .hmi-header-logo {
+    height: 1.2em;
+    width: auto;
+    margin-right: 15px;
+    vertical-align: middle;
+}
+
 /* Column grid — Pump 1 | Pump 2 | Skid | Tank. auto-fit keeps it usable in
    the narrower cloud-widget container without viewport media queries. */
 .hmi-root .hmi-grid {

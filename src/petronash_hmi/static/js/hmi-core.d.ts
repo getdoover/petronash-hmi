@@ -70,6 +70,20 @@ export interface HmiHandle {
   destroy(): void;
 }
 
+/**
+ * Brand logos for the header bar. Each value is an `<img>` src — the cloud
+ * widget passes inlined data URIs (imported with the `?inline` suffix) so the
+ * single-file bundle never depends on a separately-emitted image file.
+ */
+export interface HmiLogos {
+  /** Petronash wordmark (leftmost). */
+  petronash: string;
+  /** Remote-Command wordmark, left of the "SIA Remote Command" title text. */
+  remoteCommand: string;
+  /** Aramco wordmark (rightmost). */
+  aramco: string;
+}
+
 export interface CreateHmiOptions {
   /**
    * How the alert window is presented.
@@ -79,6 +93,13 @@ export interface CreateHmiOptions {
    *   pushing them down rather than covering them.
    */
   alertLayout?: "overlay" | "inline";
+  /**
+   * Brand logos for the header bar. When provided, createHmi builds a frosted
+   * header (Petronash · Remote-Command wordmark · "SIA Remote Command" ·
+   * Aramco) as the first child of the root, above the alert banner and tiles.
+   * Omit for no header (keeps non-logo embedders unchanged).
+   */
+  logos?: HmiLogos;
 }
 
 export function createHmi(

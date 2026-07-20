@@ -39,6 +39,11 @@ export default defineConfig({
     },
     output: {
         injectStyles: true,
+        // Belt-and-braces with the `?inline` import suffix on the logos: force
+        // EVERY asset under the data-URI threshold so nothing is emitted as a
+        // separate file. The ConcatenatePlugin ships only .js from dist, so a
+        // standalone .png would 404 in the single-file widget bundle.
+        dataUriLimit: Number.MAX_SAFE_INTEGER,
     },
     plugins: [
         pluginReact(),

@@ -1,5 +1,13 @@
 import "../../src/petronash_hmi/static/css/hmi-core.css";
 
+// Header brand logos, inlined as data URIs (see globals.d.ts / rsbuild.config)
+// so the single-file ConcatenatePlugin bundle carries them with no emitted
+// .png. The framework-free render core cannot import images, so the shell
+// hands them to createHmi to build the header.
+import aramcoLogo from "./assets/aramco_logo.png?inline";
+import petronashLogo from "./assets/petronash_logo.png?inline";
+import remoteCommandLogo from "./assets/remote_command_logo.png?inline";
+
 import { useEffect, useMemo, useRef } from "react";
 
 import RemoteComponentWrapper from "customer_site/RemoteComponentWrapper";
@@ -97,7 +105,16 @@ function PetronashHmiInner({ uiElement }: { uiElement?: UiRemoteComponent }) {
     // Cloud widget: the alert window stacks above the tiles (y-axis banner)
     // rather than overlaying them, so it never covers content in the host UI's
     // variable-height column. The local panel keeps the default z-axis overlay.
-    hmiRef.current = createHmi(rootRef.current, { alertLayout: "inline" });
+    // The logos build the branded header above everything; the render core
+    // cannot import images, so we pass the inlined data URIs in here.
+    hmiRef.current = createHmi(rootRef.current, {
+      alertLayout: "inline",
+      logos: {
+        petronash: petronashLogo,
+        remoteCommand: remoteCommandLogo,
+        aramco: aramcoLogo,
+      },
+    });
     return () => {
       hmiRef.current?.destroy();
       hmiRef.current = null;
