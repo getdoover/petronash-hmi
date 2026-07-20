@@ -1,15 +1,18 @@
 from pathlib import Path
 
 from pydoover import config
+from pydoover.processor.config import ManySubscriptionConfig
 
 
 class PetronashHmiConfig(config.Schema):
     """Config for the read-only HMI.
 
-    The HMI is a pure consumer: it reads the sensor apps' tags and alarm
-    setpoints plus the pump controller's state tags, and renders them on the
-    local panel. Defaults match the standard solution deployment; every field
-    is operator-overridable.
+    The HMI is a widget-only PRO app: the widget reads the sensor apps' tags
+    and alarm setpoints plus the pump controller's state tags and renders them.
+    These fields tell the widget which peer apps to read; every field has a
+    default matching the standard solution deployment and is operator-
+    overridable. The widget reads them straight from deployment_config, so a
+    change takes effect on its next render without redeploying anything.
     """
 
     flow_sensor_app = config.Application(
@@ -39,6 +42,15 @@ class PetronashHmiConfig(config.Schema):
         default='Inch (")',
         description="Units used for length readings (e.g. tank level) on the screen",
     )
+
+    # --- processor plumbing ---------------------------------------------
+    # The HMI does no processor work, so it subscribes to nothing: an EMPTY
+    # subscriptions default means the deployer wires no SNS trigger and the
+    # Lambda is never invoked (the opposite of the segmenter, which needs
+    # "dv-rpc"). Deliberately NO ScheduleConfig/TimezoneConfig: those make the
+    # deployer create an AWS EventBridge schedule, which fails for an app that
+    # has no valid schedule expression ("Invalid Schedule Expression").
+    subscriptions = ManySubscriptionConfig(default=[])
 
 
 def export():

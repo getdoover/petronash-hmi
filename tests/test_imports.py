@@ -1,15 +1,21 @@
 """
-Basic tests for an application.
+Basic tests for the widget-only PRO app.
 
-This ensures all modules are importable and that the config and UI schemas are valid.
+Ensures the processor + its schemas are importable and valid. The HMI's actual
+logic lives in the widget (widget/), tested under tests/js and the widget's own
+node tests; this file only guards the app record's shape.
 """
 
 import json
 
 from pydoover.config import Schema
+from pydoover.processor import Application
 from pydoover.tags import Tags
 from pydoover.ui import UI
 
+# The widget reads these five out of deployment_config to know which peer apps
+# to render. The dv_proc_* keys below are PRO plumbing, added by the processor
+# config helpers.
 CONFIG_FIELDS = (
     "flow_sensor_app",
     "pressure_sensor_app",
@@ -17,29 +23,37 @@ CONFIG_FIELDS = (
     "pump_controller_app",
     "display_units",
 )
+PROC_FIELDS = ("dv_proc_subscriptions",)
 
 
 def test_import_app():
-    from petronash_hmi.application import PetronashHmiApplication
+    from petronash_hmi.application import PetronashHmiApp
 
-    assert PetronashHmiApplication.config_cls is not None
-    assert PetronashHmiApplication.tags_cls is not None
-    assert PetronashHmiApplication.ui_cls is not None
+    # It is a cloud processor (PRO), not a device docker app.
+    assert issubclass(PetronashHmiApp, Application)
+    assert PetronashHmiApp.config_cls is not None
+    assert PetronashHmiApp.ui_cls is not None
+
+
+def test_handler_entrypoint_exists():
+    # The Lambda handler is what makes the package a valid processor.
+    from petronash_hmi import handler
+
+    assert callable(handler)
 
 
 def test_config_schema():
     from petronash_hmi.app_config import PetronashHmiConfig
 
     assert issubclass(PetronashHmiConfig, Schema)
-
     schema = PetronashHmiConfig.to_schema()
-    assert isinstance(schema, dict)
     assert schema["type"] == "object"
 
-    # Exactly the v2 config surface — no genealogical debris.
-    assert set(schema["properties"]) == set(CONFIG_FIELDS)
+    props = set(schema["properties"])
+    assert set(CONFIG_FIELDS) <= props  # the app fields
+    assert set(PROC_FIELDS) <= props  # the PRO plumbing
 
-    # Every field carries a default, so nothing is required.
+    # Every app field carries a default, so nothing is required of the operator.
     for name in CONFIG_FIELDS:
         assert name not in schema.get("required", [])
 
@@ -53,33 +67,20 @@ def test_config_schema():
     )
 
 
-def test_tags():
+def test_no_subscriptions_wired():
+    """A widget-only app subscribes to nothing, so the Lambda is never invoked."""
+    from petronash_hmi.app_config import PetronashHmiConfig
+
+    schema = PetronashHmiConfig.to_schema()
+    assert schema["properties"]["dv_proc_subscriptions"].get("default", []) == []
+
+
+def test_tags_and_ui():
     from petronash_hmi.app_tags import PetronashHmiTags
-
-    assert issubclass(PetronashHmiTags, Tags)
-
-
-def test_ui():
     from petronash_hmi.app_ui import PetronashHmiUI
 
+    assert issubclass(PetronashHmiTags, Tags)
     assert issubclass(PetronashHmiUI, UI)
-
-
-def test_dashboard():
-    from petronash_hmi.dashboard import DashboardData, PetronashDashboard
-
-    assert PetronashDashboard
-    assert isinstance(DashboardData().to_dict(), dict)
-
-
-def test_dashboard_is_read_only():
-    """The HMI is strictly read-only — no socket handler may mutate anything."""
-    from petronash_hmi.dashboard import PetronashDashboard
-
-    dashboard = PetronashDashboard(host="127.0.0.1", port=0)
-    handlers = dashboard.socketio.server.handlers.get("/", {})
-    assert "set_pump_state" not in handlers
-    assert set(handlers) <= {"connect", "disconnect", "request_data"}
 
 
 def test_config_export(tmp_path):
@@ -89,9 +90,8 @@ def test_config_export(tmp_path):
     PetronashHmiConfig.export(fp, "petronash_hmi")
 
     data = json.loads(fp.read_text())
-    assert "config_schema" in data["petronash_hmi"]
-    properties = data["petronash_hmi"]["config_schema"]["properties"]
-    assert set(properties) == set(CONFIG_FIELDS)
+    props = set(data["petronash_hmi"]["config_schema"]["properties"])
+    assert set(CONFIG_FIELDS) <= props
 
 
 def test_ui_export(tmp_path):
@@ -111,6 +111,5 @@ def test_ui_export(tmp_path):
     # Scope/module must stay in sync with widget/rsbuild.config.ts.
     assert widget["scope"] == "PetronashHmiWidget"
     assert widget["module"] == "./PetronashHmiWidget"
-    # The app defaults to the top of the device page, expanded.
     assert ui_schema["position"] == "$config.app().dv_app_position:number:0"
     assert ui_schema["defaultOpen"] == "$config.app().dv_app_default_open:boolean:true"

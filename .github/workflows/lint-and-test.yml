@@ -1,10 +1,12 @@
 name: "Lint and Test Code"
 
+# Widget-only PRO (cloud processor) app: there is no container image to
+# build/push, so this repo has no build-image workflow — just lint, test and
+# schema validation on every push/PR (main included).
+
 on:
   workflow_dispatch:
   push:
-    branches-ignore:
-      - main  # run build-image action for main
   pull_request:
 
 jobs:

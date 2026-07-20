@@ -2,16 +2,16 @@
     "petronash_hmi": {
         "name": "petronash_hmi",
         "display_name": "Petronash HMI",
-        "type": "DEV",
+        "type": "PRO",
         "visibility": "PUB",
         "allow_many": true,
         "description": "Petronash local HMI for SIA pump skids (Aramco) - read-only panel showing pump states, flow/pressure/tank readings, alarm setpoints and volume totaliser",
         "long_description": "README.md",
         "depends_on": [],
         "owner_org_key": "36a22e32-ab81-4a39-b400-869d532a052d",
-        "image_name": "ghcr.io/getdoover/petronash-hmi:main",
-        "container_registry_profile_id": 145420619704469767,
-        "build_args": "--platform linux/amd64,linux/arm64",
+        "image_name": null,
+        "container_registry_profile_id": null,
+        "build_args": null,
         "config_schema": {
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "$id": "",
@@ -90,6 +90,27 @@
                     "description": "Units used for length readings (e.g. tank level) on the screen",
                     "default": "Inch (\")",
                     "x-position": 4
+                },
+                "dv_proc_subscriptions": {
+                    "title": "Subscription",
+                    "x-name": "dv_proc_subscriptions",
+                    "x-hidden": false,
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "x-required": false,
+                    "description": "A list of channels to subscribe to.",
+                    "default": [],
+                    "x-position": 5,
+                    "items": {
+                        "title": "Channel Subscription",
+                        "x-name": "dv_proc_subscription",
+                        "x-hidden": false,
+                        "type": "string",
+                        "x-required": true,
+                        "description": "The name of the channel to subscribe to"
+                    }
                 }
             },
             "additionalElements": true,
@@ -99,8 +120,18 @@
         "code_repo_key": null,
         "repo_branch": "main",
         "staging_config": {
-            "container_registry_profile_id": "7369503578182270976",
-            "id": 202276888423479815
+            "id": 202276888423479815,
+            "lambda_config": {
+                "Environment": {
+                    "Variables": {
+                        "DOOVER_DATA_ENDPOINT": "https://data.staging.udoover.com/api"
+                    }
+                },
+                "Runtime": "python3.13",
+                "Timeout": 300,
+                "Handler": "src.petronash_hmi.handler",
+                "MemorySize": 256
+            }
         },
         "ui_schema": {
             "displayString": "$config.app().APP_DISPLAY_NAME",
@@ -133,7 +164,12 @@
         "id": 202285986707717380,
         "owner_org_id": null,
         "code_repo_id": null,
-        "lambda_config": null,
+        "lambda_config": {
+            "Runtime": "python3.13",
+            "Timeout": 300,
+            "MemorySize": 256,
+            "Handler": "src.petronash_hmi.handler"
+        },
         "icon_url": null,
         "banner_url": null,
         "export_config_command": null,

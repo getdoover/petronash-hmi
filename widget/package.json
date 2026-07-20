@@ -7,7 +7,8 @@
   "scripts": {
     "build": "rsbuild build",
     "watch": "rsbuild build --watch --mode development",
-    "serve": "serve -s assets/ -l 8003"
+    "serve": "serve -s assets/ -l 8003",
+    "test": "node --test tests/*.test.mjs"
   },
   "author": "Doover Team",
   "license": "ISC",
