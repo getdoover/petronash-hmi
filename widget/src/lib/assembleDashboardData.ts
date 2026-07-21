@@ -128,8 +128,17 @@ export function volumeUnits(flowUnits: string): string {
   return /^gp/i.test(flowUnits.trim()) ? "gal" : "units";
 }
 
-const MM_PER_METRE = 1000;
-const MM_PER_INCH = 25.4;
+// Multiplier converting a length in metres (the unit the analog level sensor
+// works in) into the sensor's configured Depth Units. The tank depth and any
+// length-based alarm setpoint are shown in that unit, dictated by the sensor.
+const DEPTH_PER_METRE: Record<string, number> = {
+  m: 1,
+  cm: 100,
+  mm: 1000,
+  in: 39.3700787,
+  ft: 3.2808399,
+};
+const DEFAULT_DEPTH_UNITS = "m";
 
 /**
  * Which of a sensor's alarm bounds the config arms: { low, high }.
@@ -156,16 +165,16 @@ export function alarmActive(alarmType: string | null): {
  *
  * The sensor's `alarm_source` picks which reading the alarm tracks, and that
  * sets the setpoint's units: "Filled Percentage" -> %, "Volume" -> the
- * sensor's volume_units, "Level Reading" -> metres converted to the panel's
- * length unit. An unknown source yields no setpoint rather than a mislabelled
- * number. Mirrors tank_alarm_display() in application.py.
+ * sensor's volume_units, "Level Reading" -> metres converted to the sensor's
+ * configured Depth Units. An unknown source yields no setpoint rather than a
+ * mislabelled number.
  */
 export function tankAlarmDisplay(
   low: number | null,
   high: number | null,
   alarmSource: string | null,
   volumeUnitsLabel: string | null,
-  lengthUnit: "inch" | "mm",
+  depthUnits: string,
 ): { low: number | null; high: number | null; units: string | null } {
   if (alarmSource === "Filled Percentage") {
     return { low, high, units: "%" };
@@ -174,13 +183,11 @@ export function tankAlarmDisplay(
     return { low, high, units: volumeUnitsLabel };
   }
   if (alarmSource === "Level Reading") {
-    const factor =
-      lengthUnit === "mm" ? MM_PER_METRE : MM_PER_METRE / MM_PER_INCH;
-    const unit = lengthUnit === "mm" ? "mm" : '"';
+    const factor = DEPTH_PER_METRE[depthUnits] ?? 1;
     return {
       low: low === null ? null : low * factor,
       high: high === null ? null : high * factor,
-      units: unit,
+      units: depthUnits,
     };
   }
   return { low: null, high: null, units: null };
@@ -223,7 +230,14 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
   // Tank level_reading is metres; the v2 contract carries millimetres.
   const levelMetres = asNumber(tankTags.level_reading);
 
-  // display_units config values look like `Inch (")` / `Millimeter (mm)`.
+  // The tank's depth, volume and any length-based alarm setpoint are shown in
+  // the units dictated by the level sensor's own config: Depth Units for the
+  // length, volume_units for the volume.
+  const depthUnits = asString(tankConfig.depth_units) ?? DEFAULT_DEPTH_UNITS;
+  const tankVolumeUnits = asString(tankConfig.volume_units);
+
+  // display_units config values look like `Inch (")` / `Millimeter (mm)`. Kept
+  // for the top-level units.length field; the tank now uses the sensor's units.
   const displayUnits = asString(hmiConfig.display_units) ?? "Inch";
   const lengthUnit: "inch" | "mm" = /inch/i.test(displayUnits) ? "inch" : "mm";
 
@@ -232,8 +246,8 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
     tankAlarms.low,
     tankAlarms.high,
     asString(tankConfig.alarm_source),
-    asString(tankConfig.volume_units),
-    lengthUnit,
+    tankVolumeUnits,
+    depthUnits,
   );
   const tankActive = alarmActive(resolveAlarmType(tankConfig));
 
@@ -269,6 +283,13 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
     tank: {
       percent: asNumber(tankTags.level_filled_percentage),
       level_mm: levelMetres === null ? null : levelMetres * 1000,
+      // Depth is shown in the sensor's Depth Units (converted from level_mm in
+      // hmi-core.js). Volume comes straight off the sensor's always-published
+      // level_volume tag, in its configured volume_units.
+      depth_units: depthUnits,
+      volume: asNumber(tankTags.level_volume),
+      volume_units: tankVolumeUnits,
+      volume_precision: asNumber(tankConfig.volume_decimal_precision) ?? 0,
       // Dumb pass-through: capacity from the level sensor's own
       // deployment_config (max_volume + volume_units). All time-to-empty math
       // lives in hmi-core.js so the two shells cannot diverge.

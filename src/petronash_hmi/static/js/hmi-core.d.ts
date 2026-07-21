@@ -40,6 +40,14 @@ export interface DashboardDataV2 {
   tank: {
     percent: number | null;
     level_mm: number | null;
+    /** The sensor's configured Depth Units (m/cm/mm/in/ft); level_mm converts
+     *  to this for display. */
+    depth_units: string;
+    /** Current tank volume from the sensor's level_volume tag, in volume_units. */
+    volume: number | null;
+    volume_units: string | null;
+    /** Decimal places for the volume readout (sensor's volume precision). */
+    volume_precision: number;
     capacity: { value: number | null; units: string | null };
     /** Alarm setpoint(s), already in display units (see alarm_units). */
     high_alarm: number | null;

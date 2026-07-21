@@ -21,9 +21,12 @@
  *                 "units": "gal" },
  *   "segment":  { "name": "Pipeline A"|null },
  *   "tank":     { "percent": 48.8|null, "level_mm": 19030.0|null,
+ *                 "depth_units": "m"|"cm"|"mm"|"in"|"ft",
+ *                 "volume": 4880.0|null, "volume_units": "L"|null,
+ *                 "volume_precision": 0,
  *                 "capacity": { "value": 100000|null, "units": "L"|"gal"|null },
  *                 "high_alarm": 56.2|null, "low_alarm": null,
- *                 "alarm_units": "%"|"L"|"mm"|"\""|null,
+ *                 "alarm_units": "%"|"L"|"ft"|null,
  *                 "high_alarm_active": true, "low_alarm_active": false,
  *                 "time_alarm_hours": 24|null },
  *   "units":    { "length": "inch"|"mm" },
@@ -51,15 +54,22 @@ function fmtNumber(value, digits = 1) {
     return value.toFixed(digits);
 }
 
-/** Format a millimetre length in the active display unit ("inch" | "mm"). */
-function fmtLength(mm, lengthUnit) {
-    if (typeof mm !== "number" || !Number.isFinite(mm)) {
-        return { value: PLACEHOLDER, unit: lengthUnit === "mm" ? "mm" : '"' };
+// Multiplier from metres (the sensor's working unit) to each Depth Unit, and
+// the decimal places to show for it. The tank depth is shown in the sensor's
+// configured Depth Units, not the HMI's own display_units.
+const DEPTH_PER_METRE = { m: 1, cm: 100, mm: 1000, in: 39.3700787, ft: 3.2808399 };
+const DEPTH_PRECISION = { m: 2, cm: 1, mm: 0, in: 1, ft: 2 };
+
+/** Format a depth given in millimetres into the sensor's Depth Units. */
+function fmtDepth(levelMm, depthUnits) {
+    const unit = depthUnits || "m";
+    if (typeof levelMm !== "number" || !Number.isFinite(levelMm)) {
+        return { value: PLACEHOLDER, unit };
     }
-    if (lengthUnit === "mm") {
-        return { value: Math.round(mm).toString(), unit: "mm" };
-    }
-    return { value: (mm / 25.4).toFixed(1), unit: '"' };
+    const metres = levelMm / 1000;
+    const factor = unit in DEPTH_PER_METRE ? DEPTH_PER_METRE[unit] : 1;
+    const precision = unit in DEPTH_PRECISION ? DEPTH_PRECISION[unit] : 2;
+    return { value: (metres * factor).toFixed(precision), unit };
 }
 
 // ---- Tank time-to-empty ------------------------------------------------
@@ -333,7 +343,9 @@ export function createHmi(rootEl, opts = {}) {
     gauge.append(gaugeFill);
 
     const tankPercent = valueDisplay("%");
-    const tankLevel = valueDisplay('"');
+    // Depth and volume units are set at render time from the sensor's config.
+    const tankLevel = valueDisplay("m");
+    const tankVolume = valueDisplay("");
 
     const tankTimeToEmpty = el("div", "tank-tte");
     const tteValue = el("span", "tank-tte-value", PLACEHOLDER);
@@ -350,9 +362,11 @@ export function createHmi(rootEl, opts = {}) {
     const tankTimeAlarm = alarmLevel("Time Alarm:", "h");
 
     const readouts = el("div", "tank-gauge-readouts");
+    // Depth on top, the percentage in the middle, volume below.
     readouts.append(
-        tankPercent.root,
         tankLevel.root,
+        tankPercent.root,
+        tankVolume.root,
         tankTimeToEmpty,
         tankHigh.root,
         tankLow.root,
@@ -412,7 +426,7 @@ export function createHmi(rootEl, opts = {}) {
         }
     }
 
-    function renderTank(tank, lengthUnit, flowData) {
+    function renderTank(tank, flowData) {
         const percent = tank && typeof tank.percent === "number" && Number.isFinite(tank.percent)
             ? tank.percent
             : null;
@@ -432,9 +446,24 @@ export function createHmi(rootEl, opts = {}) {
             }
         }
 
-        const level = fmtLength(tank ? tank.level_mm : null, lengthUnit);
-        tankLevel.value.textContent = level.value;
-        tankLevel.unit.textContent = level.unit;
+        const depth = fmtDepth(
+            tank ? tank.level_mm : null,
+            tank ? tank.depth_units : "m",
+        );
+        tankLevel.value.textContent = depth.value;
+        tankLevel.unit.textContent = depth.unit;
+
+        const volume =
+            tank && typeof tank.volume === "number" && Number.isFinite(tank.volume)
+                ? tank.volume
+                : null;
+        const volumePrecision =
+            tank && typeof tank.volume_precision === "number"
+                ? tank.volume_precision
+                : 0;
+        tankVolume.value.textContent =
+            volume === null ? PLACEHOLDER : volume.toFixed(volumePrecision);
+        tankVolume.unit.textContent = (tank && tank.volume_units) || "";
 
         tteValue.textContent = formatTimeToEmpty(tank || {}, flowData || {});
 
@@ -540,8 +569,7 @@ export function createHmi(rootEl, opts = {}) {
         volume.value.textContent = fmtNumber(volumeData.total);
         volume.unit.textContent = volumeData.units || "";
 
-        const lengthUnit = data.units && data.units.length === "mm" ? "mm" : "inch";
-        renderTank(data.tank || {}, lengthUnit, flowData);
+        renderTank(data.tank || {}, flowData);
 
         renderAlerts(data.alerts);
     }
