@@ -19,22 +19,26 @@ class PetronashHmiConfig(config.Schema):
         "Flow Sensor App",
         default="4_20ma_sensor_1",
         description="The 4-20mA sensor application measuring flow rate",
+        hidden=True,
     )
     pressure_sensor_app = config.Application(
         "Pressure Sensor App",
         default="4_20ma_sensor_2",
         description="The 4-20mA sensor application measuring pressure",
+        hidden=True,
     )
     tank_level_app = config.Application(
         "Tank Level App",
         default="analog_level_sensor_1",
         description="The analog level sensor application measuring tank level",
+        hidden=True,
     )
     pump_controller_app = config.Application(
         "Pump Controller App",
         default="petronash_pump_controller_1",
         description="The Petronash pump controller application (pump states, "
         "volume totaliser and alerts)",
+        hidden=True,
     )
     display_units = config.Enum(
         "Display Units",
