@@ -125,7 +125,8 @@ function PetronashHmiInner({ uiElement }: { uiElement?: UiRemoteComponent }) {
     hmiRef.current?.update(data);
   }, [data]);
 
-  return <div ref={rootRef} style={{ padding: "8px" }} />;
+  // Padding lives in hmi-core.css (.hmi-root) so compact mode can drop it.
+  return <div ref={rootRef} />;
 }
 
 const PetronashHmiWidget = (props: { uiElement?: UiRemoteComponent }) => (

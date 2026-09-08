@@ -11,6 +11,9 @@
 
 .hmi-root {
     position: relative;
+    /* The widget shell's own breathing room (it used to be an inline style on
+       the mount div); compact mode below zeroes it. */
+    padding: 8px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #333;
 }
@@ -396,3 +399,171 @@
 .hmi-root .pump-section { animation-delay: 0s; }
 .hmi-root .skid-section { animation-delay: 0.05s; }
 .hmi-root .tank-section { animation-delay: 0.1s; }
+
+/* ---------------------------------------------------------------------------
+   Compact mode — the Doovit kiosk panel (Newhaven NHD-7.0, 800x480, no scaler,
+   no scrollbar an operator can use). Keyed on viewport HEIGHT because that is
+   the constraint: the DDA local widget host pads the page 1rem all round, so
+   the HMI has ~448px to land the header plus three tiles in. Nothing here
+   fires in the cloud UI (a normal browser window is far taller); a phone held
+   landscape gets the same compact layout, which is the right call there too.
+   Every rule below is a tightening of the value above it — same structure,
+   smaller type, thinner padding, single-row header, overlay alerts. */
+@media (max-height: 540px) {
+    .hmi-root {
+        padding: 0;
+    }
+
+    /* The panel's browser paints in software on a CM4. backdrop-filter blur
+       and large soft shadows are repainted on every value tick and cost real
+       CPU (and heat) there, for no visible gain on a flat off-white page. */
+    .hmi-root .hmi-header,
+    .hmi-root .control-section {
+        backdrop-filter: none;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        animation: none;
+    }
+
+    .hmi-root .tank-gauge-fill {
+        transition: none;
+    }
+
+    /* Header on ONE row: Petronash · Remote-Command mark · title · Aramco. */
+    .hmi-root .hmi-header {
+        padding: 4px 14px;
+        margin-bottom: 6px;
+        border-radius: 10px;
+    }
+
+    .hmi-root .hmi-header-title {
+        font-size: 1.25rem;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+    }
+
+    .hmi-root .hmi-title-logo {
+        height: 1.5em;
+    }
+
+    .hmi-root .hmi-title-logo-left {
+        margin-right: 14px;
+    }
+
+    .hmi-root .hmi-title-logo-right {
+        margin-left: 14px;
+    }
+
+    .hmi-root .hmi-header-logo {
+        height: 1.35em;
+        margin-right: 10px;
+    }
+
+    .hmi-root .hmi-grid {
+        gap: 10px;
+    }
+
+    .hmi-root .control-section {
+        padding: 8px 12px;
+        border-radius: 10px;
+    }
+
+    .hmi-root .control-section h2 {
+        font-size: 1rem;
+        margin-bottom: 4px;
+        padding-bottom: 3px;
+    }
+
+    .hmi-root .controls-grid {
+        gap: 6px;
+    }
+
+    .hmi-root .control-card {
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+
+    .hmi-root .control-card h3 {
+        font-size: 0.72rem;
+        margin-bottom: 3px;
+    }
+
+    .hmi-root .value-display {
+        gap: 2px;
+    }
+
+    .hmi-root .value {
+        font-size: 1.25rem;
+    }
+
+    .hmi-root .unit {
+        font-size: 0.65rem;
+    }
+
+    .hmi-root .alarm-level {
+        margin-top: 2px;
+        font-size: 0.68rem;
+        line-height: 1.3;
+    }
+
+    .hmi-root .state-value {
+        padding: 4px 10px;
+        font-size: 0.68rem;
+    }
+
+    .hmi-root .tank-gauge-wrap {
+        gap: 10px;
+        padding: 4px 2px;
+    }
+
+    .hmi-root .tank-gauge {
+        width: 48px;
+        min-height: 0;
+    }
+
+    .hmi-root .tank-gauge-readouts {
+        gap: 4px;
+    }
+
+    .hmi-root .tank-tte {
+        gap: 2px;
+    }
+
+    .hmi-root .tank-tte-label {
+        font-size: 0.65rem;
+    }
+
+    .hmi-root .tank-tte-value {
+        font-size: 1rem;
+    }
+
+    /* Alerts float OVER the tiles again: an inline banner would push the grid
+       below the fold on a panel that cannot scroll. */
+    .hmi-root.hmi-alert-inline .hmi-alert-popover {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: auto;
+        min-width: 60%;
+        max-width: 90%;
+        margin: 0;
+        transform: translate(-50%, -50%);
+        font-size: 1.1rem;
+    }
+
+    .hmi-root.hmi-alert-inline .hmi-alert-popover.hidden {
+        display: none;
+    }
+
+    .hmi-root .hmi-alert-content {
+        padding: 12px 16px;
+    }
+
+    .hmi-root .hmi-alert-content h2 {
+        font-size: 1.3rem;
+        margin-bottom: 6px;
+    }
+
+    .hmi-root .hmi-alert-instructions {
+        font-size: 0.95rem;
+    }
+}
