@@ -193,16 +193,44 @@ export function tankAlarmDisplay(
   return { low: null, high: null, units: null };
 }
 
+export interface PeerApps {
+  flowApp: string;
+  pressureApp: string;
+  tankApp: string;
+  pumpApp: string;
+}
+
+/**
+ * The four peer-app keys this HMI install reads, from its own block in
+ * `deployment_config` (the cross-app wiring fields), falling back to the
+ * solution defaults. Exported so the live-tag claim (lib/liveTags.ts) names
+ * the SAME apps the tiles render — an install that overrides a peer key must
+ * claim that key, not the default, or live mode silently does nothing.
+ */
+export function resolvePeerApps(
+  appKey: string,
+  deploymentConfig: JsonRecord | undefined,
+): PeerApps {
+  const applications = asRecord(asRecord(deploymentConfig).applications);
+  const hmiConfig = asRecord(applications[appKey]);
+  return {
+    flowApp: asString(hmiConfig.flow_sensor_app) ?? DEFAULT_FLOW_APP,
+    pressureApp:
+      asString(hmiConfig.pressure_sensor_app) ?? DEFAULT_PRESSURE_APP,
+    tankApp: asString(hmiConfig.tank_level_app) ?? DEFAULT_TANK_APP,
+    pumpApp:
+      asString(hmiConfig.pump_controller_app) ?? DEFAULT_PUMP_CONTROLLER_APP,
+  };
+}
+
 export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
   const applications = asRecord(asRecord(inputs.deploymentConfig).applications);
   const hmiConfig = asRecord(applications[inputs.appKey]);
 
-  const flowApp = asString(hmiConfig.flow_sensor_app) ?? DEFAULT_FLOW_APP;
-  const pressureApp =
-    asString(hmiConfig.pressure_sensor_app) ?? DEFAULT_PRESSURE_APP;
-  const tankApp = asString(hmiConfig.tank_level_app) ?? DEFAULT_TANK_APP;
-  const pumpApp =
-    asString(hmiConfig.pump_controller_app) ?? DEFAULT_PUMP_CONTROLLER_APP;
+  const { flowApp, pressureApp, tankApp, pumpApp } = resolvePeerApps(
+    inputs.appKey,
+    inputs.deploymentConfig,
+  );
 
   const tags = asRecord(inputs.tagValues);
   const cmds = asRecord(inputs.uiCmds);

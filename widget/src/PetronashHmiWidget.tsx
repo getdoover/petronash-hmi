@@ -19,7 +19,16 @@ import {
   createHmi,
   type HmiHandle,
 } from "../../src/petronash_hmi/static/js/hmi-core.js";
-import { assembleDashboardData } from "./lib/assembleDashboardData";
+import {
+  assembleDashboardData,
+  resolvePeerApps,
+} from "./lib/assembleDashboardData";
+import {
+  liveTagIds,
+  overlayLiveValues,
+  reconcileTankVolume,
+} from "./lib/liveTags";
+import { useLiveTags } from "./lib/useLiveTags";
 
 /**
  * Petronash HMI cloud widget.
@@ -66,6 +75,21 @@ function resolveAppKey(uiElement?: UiRemoteComponent): string {
   return DEFAULT_APP_KEY;
 }
 
+/** The level sensor app's own block of deployment_config (its volume model lives there). */
+function tankAppConfig(
+  deploymentConfig: Record<string, unknown> | undefined,
+  tankApp: string,
+): Record<string, unknown> {
+  const apps = deploymentConfig?.applications;
+  const block =
+    apps && typeof apps === "object"
+      ? (apps as Record<string, unknown>)[tankApp]
+      : undefined;
+  return block && typeof block === "object" && !Array.isArray(block)
+    ? (block as Record<string, unknown>)
+    : {};
+}
+
 function PetronashHmiInner({ uiElement }: { uiElement?: UiRemoteComponent }) {
   const params = useRemoteParams();
   const agentId = params?.agentId;
@@ -81,20 +105,58 @@ function PetronashHmiInner({ uiElement }: { uiElement?: UiRemoteComponent }) {
   );
   const { data: uiCmds } = useAgentChannel(agentId, "ui_cmds");
 
+  // Live tags. The persisted tag_values aggregate only reaches the cloud
+  // every 15 minutes unless the tag-owning app's own card is expanded, so the
+  // widget claims its tiles' tags in the device's presence channel and
+  // overlays the one-shot frames the apps stream back. The hook is a no-op
+  // on the device-agent local host (its client is not a doover-js cloud
+  // client — see isLiveCapableClient); the kiosk renders at loop rate from
+  // local state regardless.
+  const peers = useMemo(
+    () => resolvePeerApps(appKey, deploymentConfig),
+    [appKey, deploymentConfig],
+  );
+  const tagIds = useMemo(() => liveTagIds(peers), [peers]);
+  const liveValues = useLiveTags({ agentId, tagIds });
+  // Local arrival time of the aggregate we hold: a live value must be at
+  // least this new to override it (deliberately keyed on object identity).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const aggregateAt = useMemo(() => Date.now(), [tagValues]);
+
   const rootRef = useRef<HTMLDivElement | null>(null);
   const hmiRef = useRef<HmiHandle | null>(null);
 
-  const data = useMemo(
-    () =>
-      assembleDashboardData({
-        appKey,
-        deploymentConfig,
-        tagValues,
-        uiCmds,
-        lastUpdated: last_updated,
-      }),
-    [appKey, deploymentConfig, tagValues, uiCmds, last_updated],
-  );
+  const data = useMemo(() => {
+    const live = overlayLiveValues(tagValues, liveValues, aggregateAt);
+    // The level sensor streams level and percentage but (today) not volume;
+    // re-derive the volume from the live level so the tank tile stays
+    // self-consistent rather than pairing a live gauge with a stale figure.
+    const tankConfig = tankAppConfig(deploymentConfig, peers.tankApp);
+    const merged = reconcileTankVolume(
+      live.tagValues,
+      live.applied,
+      peers.tankApp,
+      tankConfig,
+    );
+    return assembleDashboardData({
+      appKey,
+      deploymentConfig,
+      tagValues: merged,
+      uiCmds,
+      // While live frames are being applied the readings are seconds old even
+      // though the aggregate has not moved, so the timestamp follows them.
+      lastUpdated: live.liveAt ?? last_updated,
+    });
+  }, [
+    appKey,
+    deploymentConfig,
+    peers,
+    tagValues,
+    liveValues,
+    aggregateAt,
+    uiCmds,
+    last_updated,
+  ]);
 
   // Mount the render core once; RemoteHost may remount the lazy component,
   // so createHmi/destroy are idempotent against the same root div.

@@ -29,6 +29,46 @@ server-side at deploy). Sensor `measurement_units` and `alarm_type` come from
 each sensor app's own `deployment_config` block; alarm setpoints come from
 `ui_cmds` (absent until an operator first moves the slider = "no setpoint").
 
+### Live readings in the cloud (`src/lib/liveTags.ts`, `useLiveTags.ts`)
+
+The persisted `tag_values` aggregate only reaches the cloud every 15 minutes
+unless the tag-owning app's *own* card is expanded on the device page
+(pydoover's presence-gated `max_age_secs`: 3 s watched, 900 s otherwise).
+Expanding the HMI card claims nothing for the sensor apps, so on its own the
+cloud widget renders 15-minute-old readings.
+
+The widget therefore uses pydoover's ephemeral live-tag path instead of
+speeding up the aggregate:
+
+1. On mount in the cloud it looks up the current user and PATCHes a claim
+   into the device's `dv-ui-sub.live_tag_open` bucket listing every tag the
+   tiles render, qualified as `<app_key>.<tag_name>` under the peer apps
+   resolved from this install's config (`resolvePeerApps`). It re-stamps
+   every 50 s while the tab is visible (the device forgets a stamp at 120 s)
+   and nulls its slot on unmount.
+2. Each sensor app then re-sends its claimed `live=True` tags every main-loop
+   iteration as a **one-shot** message on `tag_values`. One-shots are never
+   persisted — no aggregate write, no message row, no alarm evaluation — so
+   the cloud copy keeps its 15-minute cadence and nothing is sent when no
+   tab is claiming.
+3. doover-js surfaces one-shots only as the gateway's `oneShotMessage` event
+   (not through the channel-subscription callbacks). The hook pools them and
+   `overlayLiveValues` writes them over the aggregate snapshot before
+   `assembleDashboardData` runs — but only while the frame is newer than the
+   aggregate we hold, so a later 15-minute flush beats a frozen live value.
+
+Every tile tag is already `live=True` in its app except the level sensor's
+`level_volume`. It is claimed anyway, and until that app marks it live the
+widget re-derives the volume from the live level using the sensor's own
+config (`volume_curve`, else `max_volume × percent` — `deriveTankVolume`
+ports the app's `_volume`), so the tank tile never pairs a live gauge with a
+stale figure. On the device-agent local host (the on-skid kiosk) all of this
+is skipped: the injected client is not a doover-js cloud client (no gateway
+event emitter or session, stub `users`, `clientId` `local-dda-http`), so
+`isLiveCapableClient` is false and the hook does nothing. Note the local host
+*does* supply `uiElement.app_key`, so that is not a host signal. The kiosk
+renders at loop rate from local state regardless.
+
 ## Build
 
 ```bash
