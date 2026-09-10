@@ -46,6 +46,29 @@ class PetronashHmiConfig(config.Schema):
         default='Inch (")',
         description="Units used for length readings (e.g. tank level) on the screen",
     )
+    # The Time to Empty readout divides the tank volume by the flow, so it
+    # inherits the noise of BOTH sensors and shows far more of it than either
+    # tile does. These two fields tune the widget-side filter (see
+    # createTimeToEmptyEstimator in static/js/hmi-core.js). Their runtime keys
+    # are derived from the DISPLAY NAMES above them, not these attribute names,
+    # so the two are kept identical on purpose.
+    time_to_empty_smoothing_s = config.Number(
+        "Time to Empty Smoothing (s)",
+        default=300.0,
+        minimum=0.0,
+        description="Time constant, in seconds, of the smoothing applied to the "
+        "flow and tank level feeding the Time to Empty readout. 0 disables "
+        "smoothing. Only affects the readout, not alarms.",
+    )
+    time_to_empty_min_flow_percent = config.Number(
+        "Time to Empty Min Flow Percent",
+        default=1.0,
+        minimum=0.0,
+        maximum=100.0,
+        description="Below this percentage of the flow sensor's range the Time "
+        "to Empty readout shows a dash instead of a number, so the 4 mA noise "
+        "floor with the pumps off does not render as thousands of days.",
+    )
 
     # --- processor plumbing ---------------------------------------------
     # The HMI does no processor work, so it subscribes to nothing: an EMPTY

@@ -158,7 +158,101 @@ test("assembleDashboardData: tank carries volume + depth in the sensor's units",
   assert.equal(data.tank.volume_precision, 1);
 });
 
+// -- assembleDashboardData: Time-to-Empty tuning -------------------------
+//
+// A dumb pass-through of this HMI install's own config, except the deadband:
+// the operator configures it as a percentage of the flow sensor's range, and
+// the assembler is the only place that knows the range, so it converts.
+
+test("assembleDashboardData: TTE tuning comes from the HMI config keys", () => {
+  const data = assembleDashboardData({
+    appKey: "petronash_hmi_1",
+    deploymentConfig: {
+      applications: {
+        petronash_hmi_1: {
+          flow_sensor_app: "4_20ma_sensor_1",
+          time_to_empty_smoothing_s: 120,
+          time_to_empty_min_flow_percent: 2.5,
+        },
+        "4_20ma_sensor_1": { max_range: 10 },
+      },
+    },
+    tagValues: {},
+    uiCmds: {},
+    lastUpdated: 0,
+  });
+  assert.equal(data.tank.tte_smoothing_seconds, 120);
+  // 2.5% of a 0-10 GPH sensor = 0.25 GPH.
+  assert.ok(
+    Math.abs(data.tank.tte_min_flow - 0.25) < 1e-9,
+    `expected 0.25, got ${data.tank.tte_min_flow}`,
+  );
+});
+
+test("assembleDashboardData: TTE tuning falls back to the schema defaults", () => {
+  const data = assembleDashboardData({
+    appKey: "petronash_hmi_1",
+    deploymentConfig: {
+      applications: {
+        petronash_hmi_1: { flow_sensor_app: "4_20ma_sensor_1" },
+        "4_20ma_sensor_1": { max_range: 10 },
+      },
+    },
+    tagValues: {},
+    uiCmds: {},
+    lastUpdated: 0,
+  });
+  // Same defaults as doover_config.json: 300 s and 1% of the sensor's range.
+  assert.equal(data.tank.tte_smoothing_seconds, 300);
+  assert.ok(
+    Math.abs(data.tank.tte_min_flow - 0.1) < 1e-9,
+    `expected 0.1, got ${data.tank.tte_min_flow}`,
+  );
+});
+
+test("assembleDashboardData: no flow max_range -> no deadband", () => {
+  const data = assembleDashboardData({
+    appKey: "petronash_hmi_1",
+    deploymentConfig: {
+      applications: {
+        petronash_hmi_1: {
+          flow_sensor_app: "4_20ma_sensor_1",
+          time_to_empty_min_flow_percent: 5,
+        },
+        "4_20ma_sensor_1": {},
+      },
+    },
+    tagValues: {},
+    uiCmds: {},
+    lastUpdated: 0,
+  });
+  // A percentage of an unknown range is not a number we can invent — the
+  // `flow > 0` gate in hmi-core.js is all that is left.
+  assert.equal(data.tank.tte_min_flow, null);
+});
+
 // -- volumeUnits ---------------------------------------------------------
+
+test("assembleDashboardData: deadband is min_range + percent of the span", () => {
+  // A 2-12 GPH channel sits at 2 GPH (its 4 mA floor) with the pumps off; the
+  // 1% default deadband must land just above that floor, not at 0.12 GPH.
+  const data = assembleDashboardData({
+    appKey: "petronash_hmi_1",
+    deploymentConfig: {
+      applications: {
+        petronash_hmi_1: {},
+        "4_20ma_sensor_1": { min_range: 2, max_range: 12 },
+      },
+    },
+    tagValues: {},
+    uiCmds: {},
+    lastUpdated: null,
+  });
+  assert.ok(
+    Math.abs(data.tank.tte_min_flow - 2.1) < 1e-9,
+    `expected 2.1, got ${data.tank.tte_min_flow}`,
+  );
+});
 
 test("volumeUnits: GP* -> gal, else units", () => {
   assert.equal(volumeUnits("GPD"), "gal");

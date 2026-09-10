@@ -21,7 +21,10 @@ dashboard, at the top of the pump-skid device's page in the regular Doover UI.
   under `.hmi-root` and inlined into the bundle (`injectStyles`).
 
 Configured peer app keys (`flow_sensor_app`, `pressure_sensor_app`,
-`tank_level_app`, `pump_controller_app`) and `display_units` are read from
+`tank_level_app`, `pump_controller_app`), `display_units` and the Time to
+Empty tuning (`time_to_empty_smoothing_s`, `time_to_empty_min_flow_percent` —
+the latter converted from a percentage into the flow sensor's own units using
+that sensor's `max_range`) are read from
 this install's own block of the `deployment_config` aggregate
 (`applications.<app_key>.…`); the install's app key reaches the widget via
 the `app_key` kwarg on the ui element (`$config.app().APP_KEY`, resolved

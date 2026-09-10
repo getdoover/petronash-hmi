@@ -108,3 +108,5 @@ without configuration.
 | `tank_level_app` | `analog_level_sensor_1` | Analog level sensor application. |
 | `pump_controller_app` | `petronash_pump_controller_1` | Petronash pump controller application. |
 | `display_units` | `Inch (")` | Length units on screen — inches or millimetres. |
+| `time_to_empty_smoothing_s` | `300` | Time constant (s) of the smoothing on the flow + tank level feeding the Time to Empty readout. `0` disables it. Readout only — alarms are untouched. |
+| `time_to_empty_min_flow_percent` | `1` | Flow below this percentage of the flow sensor's range shows Time to Empty as a dash, so the 4 mA noise floor with the pumps off is not rendered as thousands of days. Set it below the lowest injection rate the skid actually runs at, or the readout is a dash while the pump is running. Once showing, the readout only blanks again when the flow drops under 0.8x this threshold, so jitter on the threshold does not flash it. |

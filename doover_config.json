@@ -91,6 +91,35 @@
                     "default": "Inch (\")",
                     "x-position": 4
                 },
+                "time_to_empty_smoothing_s": {
+                    "title": "Time to Empty Smoothing (s)",
+                    "x-name": "time_to_empty_smoothing_s",
+                    "x-hidden": false,
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "x-required": false,
+                    "description": "Time constant, in seconds, of the smoothing applied to the flow and tank level feeding the Time to Empty readout. 0 disables smoothing. Only affects the readout, not alarms.",
+                    "default": 300.0,
+                    "x-position": 5,
+                    "minimum": 0.0
+                },
+                "time_to_empty_min_flow_percent": {
+                    "title": "Time to Empty Min Flow Percent",
+                    "x-name": "time_to_empty_min_flow_percent",
+                    "x-hidden": false,
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "x-required": false,
+                    "description": "Below this percentage of the flow sensor's range the Time to Empty readout shows a dash instead of a number, so the 4 mA noise floor with the pumps off does not render as thousands of days.",
+                    "default": 1.0,
+                    "x-position": 6,
+                    "minimum": 0.0,
+                    "maximum": 100.0
+                },
                 "dv_proc_subscriptions": {
                     "title": "Subscription",
                     "x-name": "dv_proc_subscriptions",
@@ -102,7 +131,7 @@
                     "x-required": false,
                     "description": "A list of channels to subscribe to.",
                     "default": [],
-                    "x-position": 5,
+                    "x-position": 7,
                     "items": {
                         "title": "Channel Subscription",
                         "x-name": "dv_proc_subscription",

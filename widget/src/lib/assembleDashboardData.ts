@@ -269,6 +269,24 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
   const displayUnits = asString(hmiConfig.display_units) ?? "Inch";
   const lengthUnit: "inch" | "mm" = /inch/i.test(displayUnits) ? "inch" : "mm";
 
+  // Time to Empty tuning, passed through to hmi-core.js's estimator (all the
+  // filter math lives there, so both shells behave identically). The deadband
+  // is configured as a PERCENTAGE of the flow sensor's range — an operator
+  // thinks in "ignore the bottom 1% of the sensor", not in GPH — so it is
+  // converted to the flow's own units here, the only place the sensor's range
+  // is known. The 4-20mA app maps 4 mA -> min_range and 20 mA -> max_range, so
+  // "the bottom 1 % of the range" is min_range + 1 % of the span — on a
+  // suppressed-zero channel the noise floor sits at min_range, not at zero.
+  // No max_range configured -> no deadband beyond the `flow > 0` gate.
+  const tteMinFlowPercent =
+    asNumber(hmiConfig.time_to_empty_min_flow_percent) ?? 1;
+  const flowMaxRange = asNumber(flowConfig.max_range);
+  const flowMinRange = asNumber(flowConfig.min_range) ?? 0;
+  const tteMinFlow =
+    flowMaxRange === null
+      ? null
+      : flowMinRange + (tteMinFlowPercent / 100) * (flowMaxRange - flowMinRange);
+
   const tankAlarms = resolveAlarmSetpoints(tankConfig, asRecord(cmds[tankApp]));
   const tankAlarm = tankAlarmDisplay(
     tankAlarms.low,
@@ -330,6 +348,11 @@ export function assembleDashboardData(inputs: AssembleInputs): DashboardDataV2 {
       alarm_units: tankAlarm.units,
       high_alarm_active: tankActive.high,
       low_alarm_active: tankActive.low,
+      // Defaults match the config schema's own defaults, so an install that
+      // predates these fields filters exactly like a fresh one.
+      tte_smoothing_seconds:
+        asNumber(hmiConfig.time_to_empty_smoothing_s) ?? 300,
+      tte_min_flow: tteMinFlow,
       // The pump controller's own tank-empty alert threshold, so the tile can
       // state both of the tank's alarms (level and remaining time).
       time_alarm_hours: asNumber(

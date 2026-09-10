@@ -61,6 +61,28 @@ export interface DashboardDataV2 {
     low_alarm_active: boolean;
     /** The pump controller's tank-empty alert threshold, in hours. */
     time_alarm_hours: number | null;
+    /**
+     * Deadband for the Time to Empty readout, in the FLOW sensor's own units.
+     * A flow below this reads as the sensor's 4 mA noise floor rather than as
+     * real outflow, so the readout shows the em-dash instead of a number. It
+     * is a threshold on the raw reading: any flow at or above it always
+     * renders, and once showing the readout only blanks when the flow falls
+     * under 0.8x the threshold (hysteresis below, never above, so a steady
+     * flow is never hidden by page history and jitter on the threshold does
+     * not flash the readout). null (or <= 0) disables it, leaving only the
+     * `flow > 0` gate.
+     */
+    tte_min_flow: number | null;
+    /**
+     * Time constant (tau), in seconds, of the exponential moving average the
+     * Time to Empty readout applies to the flow and the tank percentage
+     * (alpha = 1 - exp(-dt/tau), so the same tau behaves the same on the 2 Hz
+     * kiosk loop and the cloud's 15-minute cadence). Each seed is a single raw
+     * sample and the first tau's worth of samples are averaged with equal
+     * weight, so the readout settles within ~30 s of a pump start.
+     * null (or <= 0) disables smoothing. Display-only — alarms are unaffected.
+     */
+    tte_smoothing_seconds: number | null;
   };
   units: { length: "inch" | "mm" };
   alerts: {
@@ -124,3 +146,26 @@ export function formatTimeToEmpty(
   tank: DashboardDataV2["tank"] | null | undefined,
   flow: DashboardDataV2["flow"] | null | undefined,
 ): string;
+
+/**
+ * Stateful wrapper around formatTimeToEmpty: a raw-value deadband plus a
+ * time-based EMA over the flow and the tank percentage, so the readout stops
+ * churning at loop rate on sensor noise. State lives per instance.
+ */
+export interface TimeToEmptyEstimator {
+  /**
+   * Fold one sample in and return the display string ("Xd Yh Zm", or the
+   * em-dash placeholder). Tuning is read from the tank block's
+   * `tte_min_flow` / `tte_smoothing_seconds`; `nowMs` is the sample time in
+   * epoch milliseconds (a non-finite value falls back to unsmoothed).
+   */
+  update(
+    tank: DashboardDataV2["tank"] | null | undefined,
+    flow: DashboardDataV2["flow"] | null | undefined,
+    nowMs: number,
+  ): string;
+  /** Drop the filter state, so the next valid sample seeds a fresh average. */
+  reset(): void;
+}
+
+export function createTimeToEmptyEstimator(): TimeToEmptyEstimator;

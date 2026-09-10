@@ -13,8 +13,14 @@ from pydoover.processor import Application
 from pydoover.tags import Tags
 from pydoover.ui import UI
 
-# The widget reads these five out of deployment_config to know which peer apps
-# to render. The dv_proc_* keys below are PRO plumbing, added by the processor
+# The widget reads these out of deployment_config: the first four say which
+# peer apps to render, the last three tune the render itself. Pinned here
+# because the runtime key is derived from the field's DISPLAY NAME, not from
+# the python attribute — an innocent-looking rename of "Time to Empty Smoothing
+# (s)" would silently change the key, and the widget (which looks the key up by
+# name and falls back to a default) would go on rendering with no error
+# anywhere. This is the only suite CI runs, so it is the only place that guard
+# can live. The dv_proc_* keys below are PRO plumbing, added by the processor
 # config helpers.
 CONFIG_FIELDS = (
     "flow_sensor_app",
@@ -22,6 +28,8 @@ CONFIG_FIELDS = (
     "tank_level_app",
     "pump_controller_app",
     "display_units",
+    "time_to_empty_smoothing_s",
+    "time_to_empty_min_flow_percent",
 )
 PROC_FIELDS = ("dv_proc_subscriptions",)
 
@@ -65,6 +73,11 @@ def test_config_schema():
         schema["properties"]["pump_controller_app"]["default"]
         == "petronash_pump_controller_1"
     )
+    # widget/src/lib/assembleDashboardData.ts hard-codes these same two numbers
+    # as its fallbacks, so an install that predates the fields filters exactly
+    # like a fresh one. If one moves, the other has to move with it.
+    assert schema["properties"]["time_to_empty_smoothing_s"]["default"] == 300.0
+    assert schema["properties"]["time_to_empty_min_flow_percent"]["default"] == 1.0
 
 
 def test_no_subscriptions_wired():
